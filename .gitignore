@@ -7,7 +7,7 @@ venv/
 env/
 .venv/
 
-# Caché de Python
+# Cachï¿½ de Python
 __pycache__/
 *.py[cod]
 *.pyo
