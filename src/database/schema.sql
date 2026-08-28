@@ -20,3 +20,13 @@ CREATE TABLE IF NOT EXISTS model_metrics (
     roc_auc FLOAT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS alerts (
+    id SERIAL PRIMARY KEY,
+    caso_uso VARCHAR(20) NOT NULL,
+    variable_afectada VARCHAR(50) NOT NULL,
+    nivel_drift VARCHAR(20),
+    descripcion TEXT,
+    revisada BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
