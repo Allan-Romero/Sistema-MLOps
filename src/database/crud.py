@@ -1,4 +1,43 @@
 from src.database.connection import get_connection
+import json
+from src.database.connection import get_connection
+
+def ejecutar_insercion(query, params):
+    """
+    Ejecuta una consulta de escritura (INSERT) y confirma los cambios.
+    Retorna el id del registro insertado.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params)
+            nuevo_id = cursor.fetchone()[0]
+        conn.commit()
+        return nuevo_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def guardar_prediccion(caso_uso, input_data, prediction, probability=None, model_version=None):
+    """
+    Inserta una predicción en la tabla predictions.
+
+    caso_uso: "fraude" o "churn"
+    input_data: diccionario con los datos de entrada enviados a la API
+    prediction: resultado del modelo (0 o 1)
+    probability: probabilidad asociada a la predicción
+    model_version: versión del modelo utilizado
+    """
+    query = """
+        INSERT INTO predictions (caso_uso, input_data, prediction, probability, model_version)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id;
+    """
+    params = (caso_uso, json.dumps(input_data), prediction, probability, model_version)
+    return ejecutar_insercion(query, params)
 
 
 def ejecutar_consulta(query, params=None):
