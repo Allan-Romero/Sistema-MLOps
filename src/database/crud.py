@@ -21,6 +21,25 @@ def ejecutar_insercion(query, params):
         conn.close()
 
 
+def guardar_metricas(caso_uso, model_version, accuracy=None, precision=None,
+                     recall=None, f1_score=None, roc_auc=None):
+    """
+    Inserta las métricas de evaluación de un modelo en la tabla model_metrics.
+
+    caso_uso: "fraude" o "churn"
+    model_version: versión del modelo evaluado (ej. "v1.0")
+    accuracy, precision, recall, f1_score, roc_auc: métricas de clasificación
+    """
+    query = """
+        INSERT INTO model_metrics (caso_uso, model_version, accuracy, precision,
+                                   recall, f1_score, roc_auc)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        RETURNING id;
+    """
+    params = (caso_uso, model_version, accuracy, precision, recall, f1_score, roc_auc)
+    return ejecutar_insercion(query, params)
+
+
 def guardar_prediccion(caso_uso, input_data, prediction, probability=None, model_version=None):
     """
     Inserta una predicción en la tabla predictions.
