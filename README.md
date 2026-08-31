@@ -1,38 +1,160 @@
 # Sistema MLOps
 
-Estructura inicial del proyecto creada para mantener el c骴igo organizado desde el inicio y facilitar el trabajo colaborativo.
+Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificaci贸n, incluyendo preprocesamiento, entrenamiento, evaluaci贸n, despliegue mediante API y monitoreo.
 
 ## Estructura del proyecto
 
-- src/: c骴igo fuente del proyecto.
-- data/: datos utilizados por el proyecto.
-- models/: modelos entrenados o artefactos generados.
-- dashboard/: archivos del dashboard o visualizaciones.
-- tests/: pruebas del proyecto.
-- docs/: documentaci髇 t閏nica y funcional.
-- docker/: configuraci髇 relacionada con Docker.
+- `src/`: c贸digo fuente del proyecto.
+- `data/`: datos utilizados por el proyecto.
+- `models/`: modelos entrenados y artefactos generados.
+- `dashboard/`: archivos del dashboard y visualizaciones.
+- `tests/`: pruebas del proyecto.
+- `docs/`: documentaci贸n t茅cnica y funcional.
+- `docker/`: configuraci贸n relacionada con Docker.
+- `notebooks/`: an谩lisis exploratorio y experimentaci贸n.
 
 ## Archivos base
 
-- requirements.txt
-- docker-compose.yml
-- .env.example
-- .gitignore
+- `requirements.txt`
+- `docker-compose.yml`
+- `.env.example`
+- `.gitignore`
 
 ## Dataset inicial del proyecto
 
-Para la primera fase del proyecto se seleccion贸 el dataset p煤blico Telco Customer Churn, orientado a la predicci贸n de abandono de clientes.
+Para la primera fase del proyecto se seleccion贸 el dataset p煤blico **Telco Customer Churn**, orientado a la predicci贸n de abandono de clientes.
 
 El dataset se encuentra almacenado en:
 
-data/raw/telco_customer_churn.csv
+`data/raw/churn.csv`
 
-La variable objetivo identificada es:
+La variable objetivo es:
 
-Churn
+`Churn`
 
-Este dataset ser谩 utilizado inicialmente para construir el flujo MLOps base del sistema: preprocesamiento, entrenamiento, evaluaci贸n, despliegue mediante API, almacenamiento de predicciones y visualizaci贸n en dashboard.
+Sus valores representan:
+
+- `No`: el cliente no abandon贸 el servicio.
+- `Yes`: el cliente abandon贸 el servicio.
+
+Este dataset es utilizado para construir el flujo MLOps base del sistema: preprocesamiento, entrenamiento, evaluaci贸n, despliegue mediante API, almacenamiento de predicciones y visualizaci贸n mediante dashboard.
 
 La descripci贸n completa del dataset se encuentra en:
 
-docs/datasets.md
+`docs/datasets.md`
+
+## Uso de la API
+
+La plataforma incluye una API desarrollada con **FastAPI** para servir el modelo de predicci贸n de churn.
+
+### Instalar dependencias
+
+Desde la ra铆z del proyecto ejecutar:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+### Levantar la API
+
+```powershell
+python -m uvicorn src.api.main:app --reload
+```
+
+La API estar谩 disponible en:
+
+`http://127.0.0.1:8000`
+
+La documentaci贸n interactiva Swagger UI estar谩 disponible en:
+
+`http://127.0.0.1:8000/docs`
+
+## Endpoint de estado
+
+### GET /health
+
+Permite verificar que la API y el modelo est茅n funcionando correctamente.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "status": "healthy",
+  "model": "churn_model",
+  "model_version": "v1",
+  "model_loaded": true
+}
+```
+
+Tambi茅n puede probarse desde PowerShell:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+## Endpoint de predicci贸n
+
+### POST /predict
+
+Recibe los datos de un cliente en formato JSON y devuelve una predicci贸n de churn.
+
+Ejemplo de entrada:
+
+```json
+{
+  "gender": "Female",
+  "SeniorCitizen": 0,
+  "Partner": "Yes",
+  "Dependents": "No",
+  "tenure": 1,
+  "PhoneService": "No",
+  "MultipleLines": "No phone service",
+  "InternetService": "DSL",
+  "OnlineSecurity": "No",
+  "OnlineBackup": "Yes",
+  "DeviceProtection": "No",
+  "TechSupport": "No",
+  "StreamingTV": "No",
+  "StreamingMovies": "No",
+  "Contract": "Month-to-month",
+  "PaperlessBilling": "Yes",
+  "PaymentMethod": "Electronic check",
+  "MonthlyCharges": 29.85,
+  "TotalCharges": 29.85
+}
+```
+
+Ejemplo de respuesta:
+
+```json
+{
+  "prediction": 1,
+  "prediction_label": "Yes",
+  "churn_probability": 0.6188,
+  "model_version": "v1"
+}
+```
+
+Donde:
+
+- `prediction = 0`: el modelo predice que el cliente no presenta churn.
+- `prediction = 1`: el modelo predice que el cliente presenta churn.
+- `prediction_label`: representaci贸n textual de la predicci贸n.
+- `churn_probability`: probabilidad estimada de churn.
+- `model_version`: versi贸n del modelo utilizada para la predicci贸n.
+
+## Probar la API con Swagger
+
+1. Ejecutar la API con Uvicorn.
+2. Abrir `http://127.0.0.1:8000/docs`.
+3. Seleccionar `/health` o `/predict`.
+4. Presionar **Try it out**.
+5. Ingresar los datos requeridos.
+6. Presionar **Execute**.
+7. Verificar que la respuesta sea `200 OK`.
+
+## Detener la API
+
+En la terminal donde se est谩 ejecutando Uvicorn presionar:
+
+`Ctrl + C`
