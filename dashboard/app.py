@@ -2,8 +2,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pandas as pd
 import streamlit as st
-from src.database.crud import obtener_metricas
+from src.database.crud import obtener_metricas, obtener_predicciones
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -43,7 +44,17 @@ st.divider()
 
 # Sección de predicciones recientes (se completa en S1-A15)
 st.subheader("Últimas predicciones")
-st.info("Sección en construcción")
+
+predicciones = obtener_predicciones(limite=10)
+
+if predicciones:
+    columnas = ["ID", "Caso de uso", "Predicción", "Probabilidad",
+                "Versión del modelo", "Fecha"]
+    df_predicciones = pd.DataFrame(predicciones, columns=columnas)
+    st.dataframe(df_predicciones, width='stretch', hide_index=True)
+    st.caption(f"Mostrando las {len(df_predicciones)} predicciones más recientes")
+else:
+    st.warning("No hay predicciones registradas en la base de datos")
 
 st.divider()
 
