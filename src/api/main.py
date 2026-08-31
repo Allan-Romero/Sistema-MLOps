@@ -38,3 +38,12 @@ def root():
         "model": "churn_model_v1",
         "status": "running"
     }
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "model": "churn_model",
+        "model_version": "v1",
+        "model_loaded": modelo is not None
+    }
