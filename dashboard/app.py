@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
-from src.database.crud import obtener_metricas, obtener_predicciones
+from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -60,4 +60,13 @@ st.divider()
 
 # Sección de alertas de drift (se completa en S1-A16)
 st.subheader("Alertas de drift")
-st.info("Sección en construcción")
+
+alertas = obtener_alertas(limite=10)
+
+if alertas:
+    columnas = ["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
+                "Descripción", "Revisada", "Fecha"]
+    df_alertas = pd.DataFrame(alertas, columns=columnas)
+    st.dataframe(df_alertas, width='stretch', hide_index=True)
+else:
+    st.info("Sin alertas registradas")
