@@ -1,6 +1,6 @@
 # Sistema MLOps
 
-Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificación, incluyendo preprocesamiento, entrenamiento, evaluación, despliegue mediante API y monitoreo.
+Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificación, incluyendo preprocesamiento, entrenamiento, evaluación, despliegue mediante API, almacenamiento de predicciones y visualización mediante dashboard.
 
 ## Estructura del proyecto
 
@@ -43,11 +43,11 @@ La descripción completa del dataset se encuentra en:
 
 `docs/datasets.md`
 
-## Uso de la API
+# Uso de la API
 
 La plataforma incluye una API desarrollada con **FastAPI** para servir el modelo de predicción de churn.
 
-### Instalar dependencias
+## Instalar dependencias
 
 Desde la raíz del proyecto ejecutar:
 
@@ -55,7 +55,7 @@ Desde la raíz del proyecto ejecutar:
 python -m pip install -r requirements.txt
 ```
 
-### Levantar la API
+## Levantar la API
 
 ```powershell
 python -m uvicorn src.api.main:app --reload
@@ -68,6 +68,22 @@ La API estará disponible en:
 La documentación interactiva Swagger UI estará disponible en:
 
 `http://127.0.0.1:8000/docs`
+
+## Endpoint raíz
+
+### GET /
+
+Permite comprobar que la API se encuentra en ejecución.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "message": "Sistema-MLOps API",
+  "model": "churn_model_v1",
+  "status": "running"
+}
+```
 
 ## Endpoint de estado
 
@@ -156,5 +172,73 @@ Donde:
 ## Detener la API
 
 En la terminal donde se está ejecutando Uvicorn presionar:
+
+`Ctrl + C`
+
+# Base de datos y dashboard
+
+## Requisitos previos
+
+- Docker Desktop instalado y en ejecución.
+- Python instalado.
+- Entorno virtual creado y activado: command "py -m venv venv" "venv/Scripts/activate"
+
+## Configurar variables de entorno
+
+Copiar `.env.example` a `.env`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Después configurar en `.env` las credenciales de PostgreSQL:
+
+```env
+POSTGRES_USER=usuario
+POSTGRES_PASSWORD=contraseña
+POSTGRES_DB=mlops_db
+```
+
+El archivo `.env` no debe subirse al repositorio.
+
+## Levantar PostgreSQL
+
+```powershell
+docker compose up -d
+```
+
+Verificar que el contenedor esté funcionando:
+
+```powershell
+docker compose ps
+```
+
+## Crear las tablas
+
+Desde PowerShell ejecutar:
+
+```powershell
+Get-Content .\src\database\schema.sql -Raw | docker exec -i mlops_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+## Verificar conexión a PostgreSQL
+
+```powershell
+python -m src.database.test_connection
+```
+
+La conexión debe completarse correctamente.
+
+## Ejecutar el dashboard
+
+```powershell
+streamlit run dashboard/app.py
+```
+
+El dashboard estará disponible en:
+
+`http://localhost:8501`
+
+Para detener el dashboard presionar:
 
 `Ctrl + C`
