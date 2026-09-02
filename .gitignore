@@ -26,3 +26,4 @@ desktop.ini
 # Editores
 .vscode/
 .idea/
+data/processed/
