@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Literal
-
+from src.database.crud import guardar_prediccion
 import joblib
 import pandas as pd
 from fastapi import FastAPI
@@ -100,9 +100,19 @@ def predict(datos: ChurnInput):
         modelo.predict_proba(df_input)[0][1]
     )
 
+    # Guardar automáticamente la predicción en PostgreSQL
+    prediccion_id = guardar_prediccion(
+        caso_uso="churn",
+        input_data=datos.model_dump(),
+        prediction=prediccion,
+        probability=probabilidad,
+        model_version="v1"
+    )
+
     return {
         "prediction": prediccion,
         "prediction_label": "Yes" if prediccion == 1 else "No",
         "churn_probability": round(probabilidad, 4),
-        "model_version": "v1"
+        "model_version": "v1",
+        "prediction_id": prediccion_id
     }
