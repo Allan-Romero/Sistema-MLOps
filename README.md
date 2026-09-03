@@ -181,7 +181,8 @@ En la terminal donde se está ejecutando Uvicorn presionar:
 
 - Docker Desktop instalado y en ejecución.
 - Python instalado.
-- Entorno virtual creado y activado: command "py -m venv venv" "venv/Scripts/activate"
+- Entorno virtual creado y activado: command `py -m venv venv` y luego `venv/Scripts/activate`
+- Si te da error `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 
 ## Configurar variables de entorno
 
