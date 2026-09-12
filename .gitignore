@@ -1,13 +1,14 @@
 # Variables de entorno
 .env
 .env.*
+!.env.example
 
 # Entornos virtuales
 venv/
 env/
 .venv/
 
-# Caché de Python
+# Cachï¿½ de Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -25,3 +26,4 @@ desktop.ini
 # Editores
 .vscode/
 .idea/
+data/processed/
