@@ -1,61 +1,87 @@
 from pathlib import Path
 
 from src.training.preprocess import main as ejecutar_preprocesamiento
-from src.training.train_model import main as ejecutar_entrenamiento
-from src.training.evaluate_model import main as ejecutar_evaluacion
+from src.training.train_model import main as ejecutar_entrenamiento_logistic
+from src.training.evaluate_model import main as ejecutar_evaluacion_logistic
+from src.training.train_xgboost import main as ejecutar_entrenamiento_xgboost
+from src.training.compare_models import main as ejecutar_comparacion
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-MODEL_FILE = (
+LOGISTIC_MODEL_FILE = (
     PROJECT_ROOT
     / "models"
     / "logistic_regression_v1.joblib"
 )
 
-METRICS_FILE = (
+XGBOOST_MODEL_FILE = (
+    PROJECT_ROOT
+    / "models"
+    / "xgboost_v1.joblib"
+)
+
+LOGISTIC_METRICS_FILE = (
     PROJECT_ROOT
     / "models"
     / "logistic_regression_v1_metrics.json"
 )
 
+COMPARISON_FILE = (
+    PROJECT_ROOT
+    / "models"
+    / "model_comparison.json"
+)
+
 
 def validar_salidas():
-    """Verifica que el pipeline haya generado sus artefactos principales."""
+    """Verifica los artefactos principales generados por el pipeline."""
 
-    if not MODEL_FILE.exists():
-        raise FileNotFoundError(
-            f"No se generó el modelo esperado: {MODEL_FILE}"
-        )
+    archivos_esperados = [
+        LOGISTIC_MODEL_FILE,
+        XGBOOST_MODEL_FILE,
+        LOGISTIC_METRICS_FILE,
+        COMPARISON_FILE,
+    ]
 
-    if not METRICS_FILE.exists():
-        raise FileNotFoundError(
-            f"No se generó el archivo de métricas esperado: {METRICS_FILE}"
-        )
+    for archivo in archivos_esperados:
+        if not archivo.exists():
+            raise FileNotFoundError(
+                f"No se generó el archivo esperado: {archivo}"
+            )
 
     print("\nArtefactos generados correctamente:")
-    print(f"- Modelo: {MODEL_FILE}")
-    print(f"- Métricas: {METRICS_FILE}")
+
+    for archivo in archivos_esperados:
+        print(f"- {archivo}")
 
 
 def main():
-    """Ejecuta el pipeline completo de entrenamiento del modelo de churn."""
+    """Ejecuta el pipeline completo de entrenamiento de churn."""
 
     print("=" * 60)
     print("PIPELINE DE ENTRENAMIENTO - CHURN")
     print("=" * 60)
 
-    print("\n[1/3] PREPROCESAMIENTO")
+    print("\n[1/5] PREPROCESAMIENTO")
     print("-" * 60)
     ejecutar_preprocesamiento()
 
-    print("\n[2/3] ENTRENAMIENTO")
+    print("\n[2/5] ENTRENAMIENTO LOGISTIC REGRESSION")
     print("-" * 60)
-    ejecutar_entrenamiento()
+    ejecutar_entrenamiento_logistic()
 
-    print("\n[3/3] EVALUACIÓN")
+    print("\n[3/5] EVALUACIÓN LOGISTIC REGRESSION")
     print("-" * 60)
-    ejecutar_evaluacion()
+    ejecutar_evaluacion_logistic()
+
+    print("\n[4/5] ENTRENAMIENTO XGBOOST")
+    print("-" * 60)
+    ejecutar_entrenamiento_xgboost()
+
+    print("\n[5/5] COMPARACIÓN DE MODELOS")
+    print("-" * 60)
+    ejecutar_comparacion()
 
     validar_salidas()
 
