@@ -27,3 +27,8 @@ desktop.ini
 .vscode/
 .idea/
 data/processed/
+
+# MLflow local
+mlflow.db*
+mlruns/
+mlartifacts/
