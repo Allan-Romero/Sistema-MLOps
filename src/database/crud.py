@@ -21,22 +21,16 @@ def ejecutar_insercion(query, params):
         conn.close()
 
 
-def guardar_metricas(caso_uso, model_version, accuracy=None, precision=None,
-                     recall=None, f1_score=None, roc_auc=None):
-    """
-    Inserta las métricas de evaluación de un modelo en la tabla model_metrics.
-
-    caso_uso: "fraude" o "churn"
-    model_version: versión del modelo evaluado (ej. "v1.0")
-    accuracy, precision, recall, f1_score, roc_auc: métricas de clasificación
-    """
+def guardar_metricas(caso_uso, model_version, algoritmo=None, accuracy=None,
+                     precision=None, recall=None, f1_score=None, roc_auc=None):
     query = """
-        INSERT INTO model_metrics (caso_uso, model_version, accuracy, precision,
-                                   recall, f1_score, roc_auc)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO model_metrics (caso_uso, model_version, algoritmo, accuracy,
+                                   precision, recall, f1_score, roc_auc)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id;
     """
-    params = (caso_uso, model_version, accuracy, precision, recall, f1_score, roc_auc)
+    params = (caso_uso, model_version, algoritmo, accuracy, precision,
+              recall, f1_score, roc_auc)
     return ejecutar_insercion(query, params)
 
 
@@ -91,8 +85,8 @@ def obtener_metricas(limite=10):
     Consulta las últimas métricas registradas del modelo.
     """
     query = """
-        SELECT id, caso_uso, model_version, accuracy, precision, recall,
-               f1_score, roc_auc, created_at
+        SELECT id, caso_uso, model_version, algoritmo, accuracy, precision,
+               recall, f1_score, roc_auc, created_at
         FROM model_metrics
         ORDER BY created_at DESC
         LIMIT %s;
@@ -160,5 +154,18 @@ def obtener_version_activa(caso_uso):
         WHERE caso_uso = %s AND estado = 'activa'
         ORDER BY created_at DESC
         LIMIT 1;
+    """
+    return ejecutar_consulta(query, (caso_uso,))
+
+def obtener_comparacion_modelos(caso_uso):
+    """
+    Obtiene las métricas más recientes de cada algoritmo para comparar su desempeño.
+    """
+    query = """
+        SELECT DISTINCT ON (algoritmo)
+               algoritmo, model_version, accuracy, precision, recall, f1_score, roc_auc
+        FROM model_metrics
+        WHERE caso_uso = %s AND algoritmo IS NOT NULL
+        ORDER BY algoritmo, created_at DESC;
     """
     return ejecutar_consulta(query, (caso_uso,))

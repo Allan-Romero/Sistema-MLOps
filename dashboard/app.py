@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
-from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas
+from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -32,13 +32,33 @@ if metricas:
     st.caption(f"Caso de uso: {caso_uso}  ·  Versión del modelo: {version}")
 
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Accuracy", f"{registro[3]:.2f}")
-    col2.metric("Precision", f"{registro[4]:.2f}")
-    col3.metric("Recall", f"{registro[5]:.2f}")
-    col4.metric("F1-score", f"{registro[6]:.2f}")
-    col5.metric("ROC-AUC", f"{registro[7]:.2f}")
+    col1.metric("Accuracy", f"{registro[4]:.2f}")
+    col2.metric("Precision", f"{registro[5]:.2f}")
+    col3.metric("Recall", f"{registro[6]:.2f}")
+    col4.metric("F1-score", f"{registro[7]:.2f}")
+    col5.metric("ROC-AUC", f"{registro[8]:.2f}")
 else:
     st.warning("No hay métricas registradas en la base de datos")
+    
+st.divider()
+st.subheader("Comparación de modelos")
+
+comparacion = obtener_comparacion_modelos("churn")
+
+if comparacion:
+    columnas = ["Algoritmo", "Versión", "Accuracy", "Precision",
+                "Recall", "F1-score", "ROC-AUC"]
+    df_comparacion = pd.DataFrame(comparacion, columns=columnas)
+    st.dataframe(df_comparacion, width='stretch', hide_index=True)
+
+    # Identificar el mejor modelo por F1-score
+    mejor = df_comparacion.loc[df_comparacion["F1-score"].idxmax()]
+    st.success(
+        f"Mejor desempeño: {mejor['Algoritmo']} "
+        f"(F1-score: {mejor['F1-score']:.2f})"
+    )
+else:
+    st.warning("No hay métricas registradas para comparar")
 
 st.divider()
 
