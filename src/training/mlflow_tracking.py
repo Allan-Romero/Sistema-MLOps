@@ -7,6 +7,12 @@ import mlflow
 import mlflow.sklearn
 import mlflow.xgboost
 
+from src.training.model_registry import (
+    REGISTERED_MODEL_NAME,
+    listar_versiones,
+    registrar_version_candidata,
+)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -15,8 +21,15 @@ MODELS_DIR = PROJECT_ROOT / "models"
 COMPARISON_FILE = MODELS_DIR / "model_comparison.json"
 SELECTION_FILE = MODELS_DIR / "model_selection.json"
 
-LOGISTIC_MODEL_FILE = MODELS_DIR / "logistic_regression_v1.joblib"
-XGBOOST_MODEL_FILE = MODELS_DIR / "xgboost_v1.joblib"
+LOGISTIC_MODEL_FILE = (
+    MODELS_DIR
+    / "logistic_regression_v1.joblib"
+)
+
+XGBOOST_MODEL_FILE = (
+    MODELS_DIR
+    / "xgboost_v1.joblib"
+)
 
 TRACKING_URI = os.getenv(
     "MLFLOW_TRACKING_URI",
@@ -51,7 +64,10 @@ def cargar_json(archivo):
             f"No se encontró el archivo requerido: {archivo}"
         )
 
-    with archivo.open("r", encoding="utf-8") as f:
+    with archivo.open(
+        "r",
+        encoding="utf-8"
+    ) as f:
         return json.load(f)
 
 
@@ -63,7 +79,8 @@ def obtener_parametros(modelo):
 
     return {
         nombre: str(valor)
-        for nombre, valor in modelo.get_params().items()
+        for nombre, valor
+        in modelo.get_params().items()
     }
 
 
@@ -73,7 +90,11 @@ def registrar_modelo_mlflow(
     metricas,
     seleccion
 ):
-    """Registra un modelo, sus parámetros y métricas en MLflow."""
+    """
+    Registra parámetros, métricas y artefactos del modelo.
+    Si el modelo es el candidato seleccionado,
+    también crea una nueva versión en Model Registry.
+    """
 
     archivo_modelo = configuracion["archivo"]
 
@@ -82,12 +103,17 @@ def registrar_modelo_mlflow(
             f"No se encontró el modelo: {archivo_modelo}"
         )
 
-    modelo = joblib.load(archivo_modelo)
+    modelo = joblib.load(
+        archivo_modelo
+    )
 
-    parametros = obtener_parametros(modelo)
+    parametros = obtener_parametros(
+        modelo
+    )
 
     es_candidato = (
-        seleccion["selected_model"] == nombre_modelo
+        seleccion["selected_model"]
+        == nombre_modelo
     )
 
     estado = (
@@ -100,27 +126,32 @@ def registrar_modelo_mlflow(
         run_name=configuracion["run_name"]
     ) as run:
 
-        mlflow.log_params(parametros)
+        mlflow.log_params(
+            parametros
+        )
 
         mlflow.log_metrics({
             nombre: float(valor)
-            for nombre, valor in metricas.items()
+            for nombre, valor
+            in metricas.items()
         })
 
         mlflow.set_tags({
             "algorithm": nombre_modelo,
             "model_status": estado,
             "pipeline": "churn-training",
-            "decision_metric": seleccion["decision_metric"],
+            "decision_metric": seleccion[
+                "decision_metric"
+            ],
         })
 
-        # Modelo original en formato joblib
+        # Modelo original en formato joblib.
         mlflow.log_artifact(
             str(archivo_modelo),
             artifact_path="joblib"
         )
 
-        # Metadatos de comparación y selección
+        # Metadatos generados por el pipeline.
         mlflow.log_artifact(
             str(COMPARISON_FILE),
             artifact_path="metadata"
@@ -131,19 +162,39 @@ def registrar_modelo_mlflow(
             artifact_path="metadata"
         )
 
-        # Modelo en formato nativo de MLflow
+        # Solo el mejor modelo entra al Model Registry.
         if configuracion["tipo"] == "sklearn":
 
-            mlflow.sklearn.log_model(
-                sk_model=modelo,
-                name="model"
-            )
+            if es_candidato:
+                model_info = mlflow.sklearn.log_model(
+                    sk_model=modelo,
+                    name="model",
+                    registered_model_name=REGISTERED_MODEL_NAME
+                )
+            else:
+                model_info = mlflow.sklearn.log_model(
+                    sk_model=modelo,
+                    name="model"
+                )
 
         elif configuracion["tipo"] == "xgboost":
 
-            mlflow.xgboost.log_model(
-                xgb_model=modelo,
-                name="model"
+            if es_candidato:
+                model_info = mlflow.xgboost.log_model(
+                    xgb_model=modelo,
+                    name="model",
+                    registered_model_name=REGISTERED_MODEL_NAME
+                )
+            else:
+                model_info = mlflow.xgboost.log_model(
+                    xgb_model=modelo,
+                    name="model"
+                )
+
+        else:
+            raise ValueError(
+                f"Tipo de modelo no soportado: "
+                f"{configuracion['tipo']}"
             )
 
         print(
@@ -152,14 +203,34 @@ def registrar_modelo_mlflow(
         print(f"Run ID: {run.info.run_id}")
         print(f"Estado: {estado}")
 
+        if es_candidato:
+
+            version = registrar_version_candidata(
+                model_info=model_info,
+                nombre_modelo=nombre_modelo,
+                seleccion=seleccion,
+            )
+
+            mlflow.set_tag(
+                "semantic_version",
+                version["semantic_version"]
+            )
+
 
 def main():
     print("========== REGISTRO MLFLOW ==========\n")
 
-    mlflow.set_tracking_uri(TRACKING_URI)
+    mlflow.set_tracking_uri(
+        TRACKING_URI
+    )
 
-    print(f"Tracking URI: {TRACKING_URI}")
-    print(f"Experimento: {EXPERIMENT_NAME}\n")
+    print(
+        f"Tracking URI: {TRACKING_URI}"
+    )
+
+    print(
+        f"Experimento: {EXPERIMENT_NAME}\n"
+    )
 
     mlflow.set_experiment(
         EXPERIMENT_NAME
@@ -177,7 +248,8 @@ def main():
 
         if nombre_modelo not in comparacion:
             raise KeyError(
-                f"No existen métricas para: {nombre_modelo}"
+                f"No existen métricas para: "
+                f"{nombre_modelo}"
             )
 
         registrar_modelo_mlflow(
@@ -187,10 +259,21 @@ def main():
             seleccion=seleccion,
         )
 
+    listar_versiones()
+
     print("\n========== RESULTADO ==========")
-    print("Modelos registrados en MLflow correctamente.")
-    print(f"Experimento: {EXPERIMENT_NAME}")
-    print("Registro MLflow completado.")
+    print(
+        "Modelos registrados en MLflow correctamente."
+    )
+    print(
+        f"Experimento: {EXPERIMENT_NAME}"
+    )
+    print(
+        f"Model Registry: {REGISTERED_MODEL_NAME}"
+    )
+    print(
+        "Registro MLflow completado."
+    )
 
 
 if __name__ == "__main__":
