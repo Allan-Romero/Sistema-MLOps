@@ -44,3 +44,5 @@ joblib
 fastapi
 xgboost
 mlflow
+pytest
+httpx
