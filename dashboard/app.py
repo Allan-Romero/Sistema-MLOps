@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
-from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos
+from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos, obtener_versiones
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -59,6 +59,28 @@ if comparacion:
     )
 else:
     st.warning("No hay métricas registradas para comparar")
+    
+st.divider()
+st.subheader("Historial de versiones del modelo")
+
+versiones = obtener_versiones(limite=20)
+
+if versiones:
+    columnas = ["ID", "Caso de uso", "Versión", "Algoritmo",
+                "Métrica", "Valor", "Estado", "Fecha"]
+    df_versiones = pd.DataFrame(versiones, columns=columnas)
+
+    st.dataframe(df_versiones, width='stretch', hide_index=True)
+
+    # Evolución de la métrica principal a lo largo de las versiones
+    df_evolucion = df_versiones.sort_values("Fecha")
+    st.line_chart(
+        df_evolucion.set_index("Versión")["Valor"],
+        height=280
+    )
+    st.caption("Evolución de la métrica principal por versión")
+else:
+    st.warning("No hay versiones registradas en la base de datos")
 
 st.divider()
 
