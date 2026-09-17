@@ -5,6 +5,7 @@ from src.training.train_model import main as ejecutar_entrenamiento_logistic
 from src.training.evaluate_model import main as ejecutar_evaluacion_logistic
 from src.training.train_xgboost import main as ejecutar_entrenamiento_xgboost
 from src.training.compare_models import main as ejecutar_comparacion
+from src.training.select_best_model import main as ejecutar_seleccion
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -33,6 +34,18 @@ COMPARISON_FILE = (
     / "model_comparison.json"
 )
 
+CANDIDATE_MODEL_FILE = (
+    PROJECT_ROOT
+    / "models"
+    / "churn_model_candidate.joblib"
+)
+
+SELECTION_FILE = (
+    PROJECT_ROOT
+    / "models"
+    / "model_selection.json"
+)
+
 
 def validar_salidas():
     """Verifica los artefactos principales generados por el pipeline."""
@@ -42,6 +55,8 @@ def validar_salidas():
         XGBOOST_MODEL_FILE,
         LOGISTIC_METRICS_FILE,
         COMPARISON_FILE,
+        CANDIDATE_MODEL_FILE,
+        SELECTION_FILE,
     ]
 
     for archivo in archivos_esperados:
@@ -63,25 +78,29 @@ def main():
     print("PIPELINE DE ENTRENAMIENTO - CHURN")
     print("=" * 60)
 
-    print("\n[1/5] PREPROCESAMIENTO")
+    print("\n[1/6] PREPROCESAMIENTO")
     print("-" * 60)
     ejecutar_preprocesamiento()
 
-    print("\n[2/5] ENTRENAMIENTO LOGISTIC REGRESSION")
+    print("\n[2/6] ENTRENAMIENTO LOGISTIC REGRESSION")
     print("-" * 60)
     ejecutar_entrenamiento_logistic()
 
-    print("\n[3/5] EVALUACIÓN LOGISTIC REGRESSION")
+    print("\n[3/6] EVALUACIÓN LOGISTIC REGRESSION")
     print("-" * 60)
     ejecutar_evaluacion_logistic()
 
-    print("\n[4/5] ENTRENAMIENTO XGBOOST")
+    print("\n[4/6] ENTRENAMIENTO XGBOOST")
     print("-" * 60)
     ejecutar_entrenamiento_xgboost()
 
-    print("\n[5/5] COMPARACIÓN DE MODELOS")
+    print("\n[5/6] COMPARACIÓN DE MODELOS")
     print("-" * 60)
     ejecutar_comparacion()
+
+    print("\n[6/6] SELECCIÓN DEL MEJOR MODELO")
+    print("-" * 60)
+    ejecutar_seleccion()
 
     validar_salidas()
 
