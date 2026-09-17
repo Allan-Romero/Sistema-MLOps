@@ -112,3 +112,53 @@ def obtener_alertas(limite=10):
         LIMIT %s;
     """
     return ejecutar_consulta(query, (limite,))
+
+def guardar_version_modelo(caso_uso, version, algoritmo=None, metrica_principal=None,
+                           valor_metrica=None, estado="historica"):
+    """
+    Inserta una nueva versión de modelo en la tabla model_versions.
+
+    caso_uso: "fraude" o "churn"
+    version: identificador de la versión (ej. "v1.0")
+    algoritmo: "logistic_regression" o "xgboost"
+    metrica_principal: métrica usada para la decisión (ej. "f1_score")
+    valor_metrica: valor obtenido en esa métrica
+    estado: "activa", "historica" o "degradada"
+    """
+    query = """
+        INSERT INTO model_versions (caso_uso, version, algoritmo, metrica_principal,
+                                    valor_metrica, estado)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id;
+    """
+    params = (caso_uso, version, algoritmo, metrica_principal, valor_metrica, estado)
+    return ejecutar_insercion(query, params)
+
+
+def obtener_versiones(limite=20):
+    """
+    Consulta el historial de versiones de modelos, de la más reciente a la más antigua.
+    """
+    query = """
+        SELECT id, caso_uso, version, algoritmo, metrica_principal,
+               valor_metrica, estado, created_at
+        FROM model_versions
+        ORDER BY created_at DESC
+        LIMIT %s;
+    """
+    return ejecutar_consulta(query, (limite,))
+
+
+def obtener_version_activa(caso_uso):
+    """
+    Consulta la versión actualmente marcada como activa para un caso de uso.
+    """
+    query = """
+        SELECT id, caso_uso, version, algoritmo, metrica_principal,
+               valor_metrica, estado, created_at
+        FROM model_versions
+        WHERE caso_uso = %s AND estado = 'activa'
+        ORDER BY created_at DESC
+        LIMIT 1;
+    """
+    return ejecutar_consulta(query, (caso_uso,))
