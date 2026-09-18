@@ -42,3 +42,7 @@ websockets==16.1.1
 scikit-learn
 joblib
 fastapi
+xgboost
+mlflow
+pytest
+httpx

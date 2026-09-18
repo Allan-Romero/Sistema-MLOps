@@ -255,3 +255,44 @@ El dashboard estará disponible en:
 Para detener el dashboard presionar:
 
 `Ctrl + C`
+
+# MLflow
+
+El proyecto utiliza MLflow para registrar los experimentos de entrenamiento de los modelos de churn.
+
+MLflow almacena:
+
+- Parámetros de entrenamiento.
+- Métricas de evaluación.
+- Artefactos del modelo.
+- Historial de ejecuciones.
+
+## Levantar MLflow
+
+Desde la raíz del proyecto, con el entorno virtual activado:
+
+`powershell`
+mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1
+
+La interfaz estará disponible en:
+
+http://127.0.0.1:5000
+
+`Ejecutar el pipeline`
+
+`Con MLflow en ejecución, abrir otra terminal con el entorno virtual activado y ejecutar:`
+
+python -m src.training.run_pipeline
+
+El pipeline registra automáticamente los experimentos en:
+
+churn-model-training
+
+Cada ejecución registra los modelos:
+
+Logistic Regression.
+XGBoost.
+
+Para detener MLflow presionar:
+
+`Ctrl + C`
