@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS model_metrics (
     id SERIAL PRIMARY KEY,
     caso_uso VARCHAR(20) NOT NULL,
     model_version VARCHAR(20) NOT NULL,
+    algoritmo VARCHAR(50),
     accuracy FLOAT,
     precision FLOAT,
     recall FLOAT,
