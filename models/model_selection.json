@@ -1,8 +1,0 @@
-{
-    "selected_model": "Logistic Regression",
-    "decision_metric": "f1_score",
-    "metric_value": 0.6031746031746031,
-    "source_model": "logistic_regression_v1.joblib",
-    "candidate_model": "churn_model_candidate.joblib",
-    "status": "candidate"
-}

@@ -3,6 +3,12 @@
 .env.*
 !.env.example
 
+# Artefactos generados por el pipeline
+models/*.joblib
+models/*.json
+mlartifacts/
+mlruns/
+
 # Entornos virtuales
 venv/
 env/
