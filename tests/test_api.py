@@ -1,7 +1,14 @@
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api import main as api_main
 
+
+RUTA_MODELO = (
+    Path(__file__).resolve().parents[1] / "models" / "churn_model_v1.joblib"
+)
 
 client = TestClient(
     api_main.app
@@ -73,11 +80,18 @@ def test_endpoint_health():
     assert data[
         "model_version"
     ] == "v1"
+    
+    assert isinstance(
+        data[
+            "model_loaded"
+        ],
+        bool
+    )
 
-    assert data[
-        "model_loaded"
-    ] is True
-
+@pytest.mark.skipif(
+    not RUTA_MODELO.exists(),
+    reason="El modelo entrenado no está disponible en este entorno"
+)
 
 def test_endpoint_predict(
     monkeypatch

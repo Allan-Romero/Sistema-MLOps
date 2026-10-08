@@ -30,7 +30,17 @@ def cargar_modelo():
     return joblib.load(MODEL_FILE)
 
 
-modelo = cargar_modelo()
+modelo = None
+
+def obtener_modelo():
+    """
+    Carga el modelo la primera vez que se solicita y lo mantiene en memoria
+    para las siguientes llamadas.
+    """
+    global modelo
+    if modelo is None:
+        modelo = cargar_modelo()
+    return modelo
 
 class ChurnInput(BaseModel):
     gender: Literal["Female", "Male"]
@@ -77,6 +87,9 @@ def health():
 
 @app.post("/predict")
 def predict(datos: ChurnInput):
+    # Obtener el modelo (se carga en la primera solicitud)
+    modelo_activo = obtener_modelo()
+
     # Convertir el JSON recibido a DataFrame
     df_input = pd.DataFrame([datos.model_dump()])
 
@@ -84,7 +97,7 @@ def predict(datos: ChurnInput):
     df_input = pd.get_dummies(df_input, dtype=int)
 
     # Obtener las columnas exactas utilizadas por el modelo
-    columnas_modelo = modelo.feature_names_in_
+    columnas_modelo = modelo_activo.feature_names_in_
 
     # Alinear el registro recibido con las 45 variables del modelo
     df_input = df_input.reindex(
@@ -93,11 +106,11 @@ def predict(datos: ChurnInput):
     )
 
     # Realizar predicción
-    prediccion = int(modelo.predict(df_input)[0])
+    prediccion = int(modelo_activo.predict(df_input)[0])
 
     # Probabilidad de churn
     probabilidad = float(
-        modelo.predict_proba(df_input)[0][1]
+        modelo_activo.predict_proba(df_input)[0][1]
     )
 
     # Guardar automáticamente la predicción en PostgreSQL
