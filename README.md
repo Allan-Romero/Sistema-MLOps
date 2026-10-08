@@ -2,6 +2,18 @@
 
 Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificación, incluyendo preprocesamiento, entrenamiento, evaluación, despliegue mediante API, almacenamiento de predicciones y visualización mediante dashboard.
 
+[![CI - Tests](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml/badge.svg)](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml) 
+
+## Integración continua
+
+El proyecto cuenta con un pipeline de integración continua en GitHub Actions
+que se ejecuta automáticamente en cada push y Pull Request, instalando
+dependencias y ejecutando la suite de pruebas.
+
+El estado de la última ejecución se refleja en el badge al inicio de este
+documento. El historial completo está disponible en la pestaña Actions
+del repositorio.
+
 ## Estructura del proyecto
 
 - `src/`: código fuente del proyecto.
@@ -241,5 +253,46 @@ El dashboard estará disponible en:
 `http://localhost:8501`
 
 Para detener el dashboard presionar:
+
+`Ctrl + C`
+
+# MLflow
+
+El proyecto utiliza MLflow para registrar los experimentos de entrenamiento de los modelos de churn.
+
+MLflow almacena:
+
+- Parámetros de entrenamiento.
+- Métricas de evaluación.
+- Artefactos del modelo.
+- Historial de ejecuciones.
+
+## Levantar MLflow
+
+Desde la raíz del proyecto, con el entorno virtual activado:
+
+`powershell`
+mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1
+
+La interfaz estará disponible en:
+
+http://127.0.0.1:5000
+
+`Ejecutar el pipeline`
+
+`Con MLflow en ejecución, abrir otra terminal con el entorno virtual activado y ejecutar:`
+
+python -m src.training.run_pipeline
+
+El pipeline registra automáticamente los experimentos en:
+
+churn-model-training
+
+Cada ejecución registra los modelos:
+
+Logistic Regression.
+XGBoost.
+
+Para detener MLflow presionar:
 
 `Ctrl + C`

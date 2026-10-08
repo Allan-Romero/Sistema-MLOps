@@ -3,6 +3,12 @@
 .env.*
 !.env.example
 
+# Artefactos generados por el pipeline
+models/*.joblib
+models/*.json
+mlartifacts/
+mlruns/
+
 # Entornos virtuales
 venv/
 env/
@@ -27,3 +33,8 @@ desktop.ini
 .vscode/
 .idea/
 data/processed/
+
+# MLflow local
+mlflow.db*
+mlruns/
+mlartifacts/
