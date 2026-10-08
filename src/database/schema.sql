@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS model_metrics (
     id SERIAL PRIMARY KEY,
     caso_uso VARCHAR(20) NOT NULL,
     model_version VARCHAR(20) NOT NULL,
+    algoritmo VARCHAR(50),
     accuracy FLOAT,
     precision FLOAT,
     recall FLOAT,
@@ -33,5 +34,17 @@ CREATE TABLE IF NOT EXISTS alerts (
     nivel_drift VARCHAR(20),
     descripcion TEXT,
     revisada BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de versiones de modelos generadas por el pipeline
+CREATE TABLE IF NOT EXISTS model_versions (
+    id SERIAL PRIMARY KEY,
+    caso_uso VARCHAR(20) NOT NULL,
+    version VARCHAR(20) NOT NULL,
+    algoritmo VARCHAR(50),
+    metrica_principal VARCHAR(20),
+    valor_metrica FLOAT,
+    estado VARCHAR(20) DEFAULT 'historica',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

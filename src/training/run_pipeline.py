@@ -7,6 +7,7 @@ from src.training.train_xgboost import main as ejecutar_entrenamiento_xgboost
 from src.training.compare_models import main as ejecutar_comparacion
 from src.training.select_best_model import main as ejecutar_seleccion
 from src.training.mlflow_tracking import main as ejecutar_mlflow
+from src.database.persist_results import main as persistir_resultados
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -79,33 +80,37 @@ def main():
     print("PIPELINE DE ENTRENAMIENTO - CHURN")
     print("=" * 60)
 
-    print("\n[1/7] PREPROCESAMIENTO")
+    print("\n[1/8] PREPROCESAMIENTO")
     print("-" * 60)
     ejecutar_preprocesamiento()
 
-    print("\n[2/7] ENTRENAMIENTO LOGISTIC REGRESSION")
+    print("\n[2/8] ENTRENAMIENTO LOGISTIC REGRESSION")
     print("-" * 60)
     ejecutar_entrenamiento_logistic()
 
-    print("\n[3/7] EVALUACIÓN LOGISTIC REGRESSION")
+    print("\n[3/8] EVALUACIÓN LOGISTIC REGRESSION")
     print("-" * 60)
     ejecutar_evaluacion_logistic()
 
-    print("\n[4/7] ENTRENAMIENTO XGBOOST")
+    print("\n[4/8] ENTRENAMIENTO XGBOOST")
     print("-" * 60)
     ejecutar_entrenamiento_xgboost()
 
-    print("\n[5/7] COMPARACIÓN DE MODELOS")
+    print("\n[5/8] COMPARACIÓN DE MODELOS")
     print("-" * 60)
     ejecutar_comparacion()
 
-    print("\n[6/7] SELECCIÓN DEL MEJOR MODELO")
+    print("\n[6/8] SELECCIÓN DEL MEJOR MODELO")
     print("-" * 60)
     ejecutar_seleccion()
 
-    print("\n[7/7] REGISTRO DE EXPERIMENTOS EN MLFLOW")
+    print("\n[7/8] REGISTRO DE EXPERIMENTOS EN MLFLOW")
     print("-" * 60)
     ejecutar_mlflow()
+    
+    print("\n[8/8] PERSISTENCIA EN POSTGRESQL")
+    print("-" * 60)
+    persistir_resultados()
 
     validar_salidas()
 

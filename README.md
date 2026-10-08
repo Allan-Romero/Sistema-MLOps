@@ -2,6 +2,18 @@
 
 Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificación, incluyendo preprocesamiento, entrenamiento, evaluación, despliegue mediante API, almacenamiento de predicciones y visualización mediante dashboard.
 
+[![CI - Tests](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml/badge.svg)](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml) 
+
+## Integración continua
+
+El proyecto cuenta con un pipeline de integración continua en GitHub Actions
+que se ejecuta automáticamente en cada push y Pull Request, instalando
+dependencias y ejecutando la suite de pruebas.
+
+El estado de la última ejecución se refleja en el badge al inicio de este
+documento. El historial completo está disponible en la pestaña Actions
+del repositorio.
+
 ## Estructura del proyecto
 
 - `src/`: código fuente del proyecto.
