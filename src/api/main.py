@@ -9,10 +9,11 @@ from pydantic import BaseModel
 
 from src.database.crud import guardar_prediccion
 from src.api.metrics import router as metrics_router
+from src.api.model_version import router as model_version_router
 
 
 # ============================================================
-# CONFIGURACIÓN DEL PROYECTO
+# CONFIGURACION DEL PROYECTO
 # ============================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,14 +24,14 @@ MODEL_FILE = (
 
 
 # ============================================================
-# CREACIÓN DE LA API
+# CREACION DE LA API
 # ============================================================
 
 app = FastAPI(
     title="Sistema-MLOps API",
     description=(
-        "API para predicción de churn y monitoreo "
-        "del desempeño del modelo."
+        "API para prediccion de churn, monitoreo "
+        "de metricas y gestion de versiones del modelo."
     ),
     version="1.0.0"
 )
@@ -41,11 +42,13 @@ app = FastAPI(
 # ============================================================
 
 def cargar_modelo():
-    """Carga el modelo oficial de churn versión 1."""
+    """
+    Carga el modelo oficial de churn version 1.
+    """
 
     if not MODEL_FILE.exists():
         raise FileNotFoundError(
-            f"No se encontró el modelo en: {MODEL_FILE}"
+            f"No se encontro el modelo en: {MODEL_FILE}"
         )
 
     return joblib.load(MODEL_FILE)
@@ -69,22 +72,34 @@ def obtener_modelo():
 
 
 # ============================================================
-# ESQUEMA DE ENTRADA
+# ESQUEMA DE ENTRADA PARA PREDICCIONES
 # ============================================================
 
 class ChurnInput(BaseModel):
 
-    gender: Literal["Female", "Male"]
+    gender: Literal[
+        "Female",
+        "Male"
+    ]
 
     SeniorCitizen: Literal[0, 1]
 
-    Partner: Literal["Yes", "No"]
+    Partner: Literal[
+        "Yes",
+        "No"
+    ]
 
-    Dependents: Literal["Yes", "No"]
+    Dependents: Literal[
+        "Yes",
+        "No"
+    ]
 
     tenure: int
 
-    PhoneService: Literal["Yes", "No"]
+    PhoneService: Literal[
+        "Yes",
+        "No"
+    ]
 
     MultipleLines: Literal[
         "Yes",
@@ -140,7 +155,10 @@ class ChurnInput(BaseModel):
         "Two year"
     ]
 
-    PaperlessBilling: Literal["Yes", "No"]
+    PaperlessBilling: Literal[
+        "Yes",
+        "No"
+    ]
 
     PaymentMethod: Literal[
         "Electronic check",
@@ -156,6 +174,7 @@ class ChurnInput(BaseModel):
 
 # ============================================================
 # ENDPOINT PRINCIPAL
+# GET /
 # ============================================================
 
 @app.get("/")
@@ -169,7 +188,8 @@ def root():
 
 
 # ============================================================
-# ENDPOINT HEALTH
+# ENDPOINT DE SALUD
+# GET /health
 # ============================================================
 
 @app.get("/health")
@@ -184,16 +204,17 @@ def health():
 
 
 # ============================================================
-# ENDPOINT PREDICT
+# ENDPOINT DE PREDICCION
+# POST /predict
 # ============================================================
 
 @app.post("/predict")
 def predict(datos: ChurnInput):
 
-    # Cargar el modelo
+    # Obtener modelo entrenado
     modelo_activo = obtener_modelo()
 
-    # Convertir el JSON a DataFrame
+    # Convertir datos recibidos a DataFrame
     df_input = pd.DataFrame(
         [datos.model_dump()]
     )
@@ -204,26 +225,26 @@ def predict(datos: ChurnInput):
         dtype=int
     )
 
-    # Obtener las columnas utilizadas en entrenamiento
+    # Obtener columnas utilizadas durante entrenamiento
     columnas_modelo = modelo_activo.feature_names_in_
 
-    # Alinear las variables con las del modelo
+    # Alinear variables con el modelo
     df_input = df_input.reindex(
         columns=columnas_modelo,
         fill_value=0
     )
 
-    # Realizar la predicción
+    # Ejecutar prediccion
     prediccion = int(
         modelo_activo.predict(df_input)[0]
     )
 
-    # Obtener probabilidad de churn
+    # Obtener probabilidad
     probabilidad = float(
         modelo_activo.predict_proba(df_input)[0][1]
     )
 
-    # Guardar predicción en PostgreSQL
+    # Guardar prediccion en PostgreSQL
     prediccion_id = guardar_prediccion(
         caso_uso="churn",
         input_data=datos.model_dump(),
@@ -247,5 +268,19 @@ def predict(datos: ChurnInput):
     }
 
 
+# ============================================================
+# SPRINT 3 - J3
+# ENDPOINT DE METRICAS DEL MODELO ACTIVO
+# GET /metrics
+# ============================================================
 
 app.include_router(metrics_router)
+
+
+# ============================================================
+# SPRINT 3 - J4
+# ENDPOINT DE VERSION ACTIVA DEL MODELO
+# GET /model-version
+# ============================================================
+
+app.include_router(model_version_router)
