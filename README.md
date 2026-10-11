@@ -1,8 +1,22 @@
 # Sistema MLOps
 
-Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificación, incluyendo preprocesamiento, entrenamiento, evaluación, despliegue mediante API, almacenamiento de predicciones y visualización mediante dashboard.
+Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clasificación, incluyendo preprocesamiento, entrenamiento, evaluación, despliegue mediante API, almacenamiento de predicciones, monitoreo de data drift y visualización mediante dashboard.
 
-[![CI - Tests](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml/badge.svg)](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml) 
+[![CI - Tests](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml/badge.svg)](https://github.com/Allan-Romero/Sistema-MLOps/actions/workflows/ci.yml)
+
+## Stack tecnológico
+
+| Componente | Tecnología |
+|---|---|
+| Lenguaje | Python 3.11 |
+| Modelos | scikit-learn, XGBoost |
+| Registro de experimentos | MLflow |
+| API | FastAPI |
+| Base de datos | PostgreSQL |
+| Dashboard | Streamlit |
+| Monitoreo de drift | Evidently AI |
+| Contenedores | Docker Compose |
+| Integración continua | GitHub Actions |
 
 ## Integración continua
 
@@ -17,6 +31,10 @@ del repositorio.
 ## Estructura del proyecto
 
 - `src/`: código fuente del proyecto.
+  - `src/training/`: preprocesamiento, entrenamiento y pipeline.
+  - `src/api/`: API de predicción.
+  - `src/database/`: conexión, esquema y operaciones sobre la base de datos.
+  - `src/monitoring/`: detección de data drift.
 - `data/`: datos utilizados por el proyecto.
 - `models/`: modelos entrenados y artefactos generados.
 - `dashboard/`: archivos del dashboard y visualizaciones.
@@ -24,6 +42,7 @@ del repositorio.
 - `docs/`: documentación técnica y funcional.
 - `docker/`: configuración relacionada con Docker.
 - `notebooks/`: análisis exploratorio y experimentación.
+- `reports/`: reportes de drift generados por Evidently.
 
 ## Archivos base
 
@@ -32,7 +51,51 @@ del repositorio.
 - `.env.example`
 - `.gitignore`
 
-## Dataset inicial del proyecto
+## Documentación complementaria
+
+- `docs/git-flow.md`: flujo de trabajo con Git y convenciones del equipo.
+- `docs/definition-of-done.md`: criterios de aceptación transversales.
+- `docs/datasets.md`: descripción completa del dataset.
+
+---
+
+# Puesta en marcha
+
+Esta sección describe el orden recomendado para levantar el sistema completo
+desde cero. Cada apartado posterior detalla los componentes de forma
+individual.
+
+| Paso | Acción | Apartado |
+|---|---|---|
+| 1 | Crear y activar el entorno virtual | Requisitos previos |
+| 2 | Instalar dependencias | Instalar dependencias |
+| 3 | Configurar variables de entorno | Configurar variables de entorno |
+| 4 | Levantar PostgreSQL | Levantar PostgreSQL |
+| 5 | Crear las tablas | Crear las tablas |
+| 6 | Levantar MLflow | MLflow |
+| 7 | Ejecutar el pipeline de entrenamiento | Ejecutar el pipeline |
+| 8 | Promover el modelo candidato a modelo activo | Modelo activo para la API |
+| 9 | Levantar la API | Levantar la API |
+| 10 | Levantar el dashboard | Ejecutar el dashboard |
+
+## Requisitos previos
+
+- Docker Desktop instalado y en ejecución.
+- Python 3.11 instalado.
+- Entorno virtual creado y activado: `py -m venv venv` y luego `venv/Scripts/activate`
+- Si da error al activar: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+## Instalar dependencias
+
+Desde la raíz del proyecto ejecutar:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+---
+
+# Dataset inicial del proyecto
 
 Para la primera fase del proyecto se seleccionó el dataset público **Telco Customer Churn**, orientado a la predicción de abandono de clientes.
 
@@ -55,17 +118,168 @@ La descripción completa del dataset se encuentra en:
 
 `docs/datasets.md`
 
+---
+
+# Base de datos
+
+## Configurar variables de entorno
+
+Copiar `.env.example` a `.env`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Después configurar en `.env` las credenciales de PostgreSQL:
+
+```env
+POSTGRES_USER=usuario
+POSTGRES_PASSWORD=contraseña
+POSTGRES_DB=mlops_db
+```
+
+El archivo `.env` no debe subirse al repositorio.
+
+## Levantar PostgreSQL
+
+```powershell
+docker compose up -d
+```
+
+Verificar que el contenedor esté funcionando:
+
+```powershell
+docker compose ps
+```
+
+## Crear las tablas
+
+Desde PowerShell ejecutar:
+
+```powershell
+Get-Content .\src\database\schema.sql -Raw | docker exec -i mlops_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+El esquema crea cuatro tablas:
+
+| Tabla | Contenido |
+|---|---|
+| `predictions` | Predicciones emitidas por la API, con sus datos de entrada |
+| `model_metrics` | Métricas de evaluación de cada modelo entrenado |
+| `model_versions` | Historial de versiones del modelo con su estado |
+| `alerts` | Alertas generadas por el monitoreo de data drift |
+
+## Verificar conexión a PostgreSQL
+
+```powershell
+python -m src.database.test_connection
+```
+
+La conexión debe completarse correctamente.
+
+---
+
+# MLflow
+
+El proyecto utiliza MLflow para registrar los experimentos de entrenamiento de los modelos de churn.
+
+MLflow almacena:
+
+- Parámetros de entrenamiento.
+- Métricas de evaluación.
+- Artefactos del modelo.
+- Historial de ejecuciones.
+
+## Levantar MLflow
+
+Desde la raíz del proyecto, con el entorno virtual activado:
+
+```powershell
+mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1
+```
+
+La interfaz estará disponible en:
+
+`http://127.0.0.1:5000`
+
+> **Importante:** MLflow debe estar en ejecución antes de lanzar el pipeline.
+> Si no lo está, el pipeline se interrumpe en el paso de registro de
+> experimentos con un error de conexión al puerto 5000.
+
+Para detener MLflow presionar:
+
+`Ctrl + C`
+
+---
+
+# Pipeline de entrenamiento
+
+## Ejecutar el pipeline
+
+Con MLflow en ejecución y PostgreSQL levantado, abrir otra terminal con el
+entorno virtual activado y ejecutar:
+
+```powershell
+python -m src.training.run_pipeline
+```
+
+El pipeline ejecuta ocho etapas encadenadas:
+
+| Etapa | Acción |
+|---|---|
+| 1 | Preprocesamiento de los datos |
+| 2 | Entrenamiento de Logistic Regression |
+| 3 | Evaluación del modelo base |
+| 4 | Entrenamiento de XGBoost |
+| 5 | Comparación de métricas entre modelos |
+| 6 | Selección automática del mejor modelo |
+| 7 | Registro de experimentos en MLflow |
+| 8 | Persistencia de métricas y versiones en PostgreSQL |
+
+Los experimentos quedan registrados en MLflow bajo el nombre
+`churn-model-training`, con una ejecución por cada algoritmo.
+
+## Modelo activo para la API
+
+El pipeline genera varios artefactos en la carpeta `models/`:
+
+| Archivo | Contenido |
+|---|---|
+| `logistic_regression_v1.joblib` | Modelo base entrenado |
+| `xgboost_v1.joblib` | Modelo de gradient boosting entrenado |
+| `churn_model_candidate.joblib` | Modelo seleccionado por el pipeline |
+| `logistic_regression_v1_metrics.json` | Métricas del modelo base |
+| `model_comparison.json` | Métricas comparativas de ambos modelos |
+| `model_selection.json` | Resultado de la selección automática |
+
+La API carga el modelo desde `models/churn_model_v1.joblib`, que corresponde
+al modelo activo en producción. Tras ejecutar el pipeline es necesario
+promover el candidato a modelo activo:
+
+```powershell
+Copy-Item models/churn_model_candidate.joblib models/churn_model_v1.joblib
+```
+
+En Git Bash o Linux:
+
+```bash
+cp models/churn_model_candidate.joblib models/churn_model_v1.joblib
+```
+
+Esta promoción es manual en la versión actual. La automatización de la
+selección del modelo activo, junto con las estrategias de A/B testing y
+rollback, está prevista para una fase posterior del desarrollo.
+
+> **Nota:** los archivos de la carpeta `models/` son artefactos generados y
+> no se versionan en el repositorio. Si la API responde con el error
+> `No se encontró el modelo`, ejecute el pipeline de entrenamiento y
+> realice la promoción descrita arriba.
+
+---
+
 # Uso de la API
 
 La plataforma incluye una API desarrollada con **FastAPI** para servir el modelo de predicción de churn.
-
-## Instalar dependencias
-
-Desde la raíz del proyecto ejecutar:
-
-```powershell
-python -m pip install -r requirements.txt
-```
 
 ## Levantar la API
 
@@ -120,6 +334,10 @@ También puede probarse desde PowerShell:
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
+> El campo `model_loaded` indica si el modelo ya fue cargado en memoria. La
+> carga es diferida: el modelo se carga en la primera solicitud de
+> predicción, por lo que este campo responde `false` hasta ese momento.
+
 ## Endpoint de predicción
 
 ### POST /predict
@@ -159,7 +377,8 @@ Ejemplo de respuesta:
   "prediction": 1,
   "prediction_label": "Yes",
   "churn_probability": 0.6188,
-  "model_version": "v1"
+  "model_version": "v1",
+  "prediction_id": 42
 }
 ```
 
@@ -170,6 +389,11 @@ Donde:
 - `prediction_label`: representación textual de la predicción.
 - `churn_probability`: probabilidad estimada de churn.
 - `model_version`: versión del modelo utilizada para la predicción.
+- `prediction_id`: identificador del registro almacenado en PostgreSQL.
+
+Cada predicción se registra automáticamente en la tabla `predictions`, junto
+con los datos de entrada recibidos. Estos datos alimentan posteriormente el
+análisis de data drift.
 
 ## Probar la API con Swagger
 
@@ -187,60 +411,71 @@ En la terminal donde se está ejecutando Uvicorn presionar:
 
 `Ctrl + C`
 
-# Base de datos y dashboard
+---
 
-## Requisitos previos
+# Monitoreo de data drift
 
-- Docker Desktop instalado y en ejecución.
-- Python instalado.
-- Entorno virtual creado y activado: command `py -m venv venv` y luego `venv/Scripts/activate`
-- Si te da error `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+El sistema monitorea los cambios de distribución entre el conjunto de datos
+de entrenamiento y los datos observados en producción, utilizando
+**Evidently AI** para el reporte visual y el **Population Stability Index
+(PSI)** como métrica de decisión.
 
-## Configurar variables de entorno
+## Variables monitoreadas
 
-Copiar `.env.example` a `.env`:
+El análisis se centra en las variables numéricas del dataset:
 
-```powershell
-Copy-Item .env.example .env
-```
+- `tenure`
+- `MonthlyCharges`
+- `TotalCharges`
 
-Después configurar en `.env` las credenciales de PostgreSQL:
+## Umbrales de decisión
 
-```env
-POSTGRES_USER=usuario
-POSTGRES_PASSWORD=contraseña
-POSTGRES_DB=mlops_db
-```
+Se adopta la escala estándar del PSI:
 
-El archivo `.env` no debe subirse al repositorio.
+| Rango de PSI | Nivel asignado | Genera alerta |
+|---|---|---|
+| Menor a 0.10 | Bajo | No |
+| Entre 0.10 y 0.25 | Medio | Sí |
+| Mayor o igual a 0.25 | Alto | Sí |
 
-## Levantar PostgreSQL
+El análisis requiere un mínimo de 30 registros de producción para ejecutarse,
+con el fin de evitar conclusiones sobre muestras no representativas.
 
-```powershell
-docker compose up -d
-```
+## Ejecutar la detección
 
-Verificar que el contenedor esté funcionando:
-
-```powershell
-docker compose ps
-```
-
-## Crear las tablas
-
-Desde PowerShell ejecutar:
+Con PostgreSQL levantado y predicciones registradas en la base:
 
 ```powershell
-Get-Content .\src\database\schema.sql -Raw | docker exec -i mlops_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+python -m src.monitoring.detect_drift
 ```
 
-## Verificar conexión a PostgreSQL
+El módulo compara el conjunto de referencia contra los datos de producción,
+clasifica el nivel de variación de cada variable y registra una alerta en la
+tabla `alerts` por cada variable con drift detectado.
+
+Adicionalmente genera un reporte visual en:
+
+`reports/drift_report.html`
+
+> **Nota:** la carpeta `reports/` contiene artefactos generados y no se
+> versiona en el repositorio.
+
+## Generar tráfico de prueba
+
+Para alimentar el análisis con datos de producción, el proyecto incluye un
+generador de predicciones de prueba. Con la API en ejecución:
 
 ```powershell
-python -m src.database.test_connection
+python -m src.monitoring.generar_trafico
 ```
 
-La conexión debe completarse correctamente.
+El script envía predicciones a la API con valores aleatorios dentro de
+rangos realistas, de modo que queden registradas en la base de datos como
+cualquier otra predicción.
+
+---
+
+# Dashboard
 
 ## Ejecutar el dashboard
 
@@ -252,47 +487,29 @@ El dashboard estará disponible en:
 
 `http://localhost:8501`
 
+El dashboard presenta:
+
+- Métricas del modelo activo.
+- Comparación de desempeño entre Logistic Regression y XGBoost.
+- Historial de versiones del modelo y evolución de la métrica principal.
+- Últimas predicciones registradas.
+- Alertas de data drift con indicación de severidad.
+- Comparación visual de distribuciones entre referencia y producción.
+
 Para detener el dashboard presionar:
 
 `Ctrl + C`
 
-# MLflow
+---
 
-El proyecto utiliza MLflow para registrar los experimentos de entrenamiento de los modelos de churn.
+# Pruebas
 
-MLflow almacena:
+Ejecutar la suite completa desde la raíz del proyecto:
 
-- Parámetros de entrenamiento.
-- Métricas de evaluación.
-- Artefactos del modelo.
-- Historial de ejecuciones.
+```powershell
+python -m pytest -v
+```
 
-## Levantar MLflow
-
-Desde la raíz del proyecto, con el entorno virtual activado:
-
-`powershell`
-mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1
-
-La interfaz estará disponible en:
-
-http://127.0.0.1:5000
-
-`Ejecutar el pipeline`
-
-`Con MLflow en ejecución, abrir otra terminal con el entorno virtual activado y ejecutar:`
-
-python -m src.training.run_pipeline
-
-El pipeline registra automáticamente los experimentos en:
-
-churn-model-training
-
-Cada ejecución registra los modelos:
-
-Logistic Regression.
-XGBoost.
-
-Para detener MLflow presionar:
-
-`Ctrl + C`
+Las pruebas que requieren el modelo entrenado se omiten automáticamente
+cuando el artefacto no está disponible, de modo que la suite puede
+ejecutarse en entornos de integración continua sin necesidad de entrenar.
