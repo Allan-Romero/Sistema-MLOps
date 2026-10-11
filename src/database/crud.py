@@ -169,3 +169,18 @@ def obtener_comparacion_modelos(caso_uso):
         ORDER BY algoritmo, created_at DESC;
     """
     return ejecutar_consulta(query, (caso_uso,))
+
+def obtener_datos_entrada(caso_uso="churn", limite=1000):
+    """
+    Recupera los datos de entrada de las predicciones registradas,
+    para el análisis de drift.
+    """
+    query = """
+        SELECT input_data
+        FROM predictions
+        WHERE caso_uso = %s
+        ORDER BY created_at DESC
+        LIMIT %s;
+    """
+    filas = ejecutar_consulta(query, (caso_uso, limite))
+    return [fila[0] for fila in filas]
