@@ -128,6 +128,26 @@ def guardar_version_modelo(caso_uso, version, algoritmo=None, metrica_principal=
     params = (caso_uso, version, algoritmo, metrica_principal, valor_metrica, estado)
     return ejecutar_insercion(query, params)
 
+def guardar_alerta(caso_uso, variable_afectada, nivel_drift,
+                   descripcion=None, revisada=False):
+    """
+    Inserta una alerta de drift en la tabla alerts.
+
+    caso_uso: "fraude" o "churn"
+    variable_afectada: nombre de la variable donde se detectó el cambio
+    nivel_drift: "bajo", "medio" o "alto"
+    descripcion: detalle de la alerta, incluido el valor de la métrica
+    revisada: indica si la alerta ya fue atendida
+    """
+    query = """
+        INSERT INTO alerts (caso_uso, variable_afectada, nivel_drift,
+                            descripcion, revisada)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id;
+    """
+    params = (caso_uso, variable_afectada, nivel_drift, descripcion, revisada)
+    return ejecutar_insercion(query, params)
+
 
 def obtener_versiones(limite=20):
     """

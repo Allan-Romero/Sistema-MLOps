@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from evidently import DataDefinition, Dataset, Report
 from evidently.presets import DataDriftPreset
+from src.database.crud import obtener_datos_entrada, guardar_alerta
 
 from src.database.crud import obtener_datos_entrada
 
@@ -168,6 +169,34 @@ def detectar_drift(referencia=None, actual=None, caso_uso="churn",
         "reporte": ruta_reporte,
     }
 
+def registrar_alertas(resultado):
+    """
+    Registra en la base de datos una alerta por cada variable donde se
+    detectó drift. Retorna la lista de identificadores generados.
+    """
+    if not resultado.get("analisis_realizado"):
+        return []
+
+    ids = []
+    for variable in resultado["variables"]:
+        if not variable["drift"]:
+            continue
+
+        descripcion = (
+            f"Se detectó un cambio de distribución en la variable "
+            f"{variable['variable']}. PSI = {variable['psi']} "
+            f"(umbral de referencia: {UMBRAL_SIGNIFICATIVO})."
+        )
+
+        alerta_id = guardar_alerta(
+            caso_uso=resultado["caso_uso"],
+            variable_afectada=variable["variable"],
+            nivel_drift=variable["nivel"],
+            descripcion=descripcion,
+        )
+        ids.append(alerta_id)
+
+    return ids
 
 def main():
     """Ejecuta la detección de drift y muestra el resultado en consola."""
@@ -191,11 +220,13 @@ def main():
     print()
     if resultado["drift_detectado"]:
         print("Resultado: se detectó drift en una o más variables.")
+        ids = registrar_alertas(resultado)
+        print(f"Alertas registradas en la base de datos: {len(ids)}")
+        if ids:
+            print(f"Identificadores: {ids}")
     else:
         print("Resultado: no se detectó drift.")
-
-    if resultado["reporte"]:
-        print(f"\nReporte generado en:\n{resultado['reporte']}")
+        print("No se generaron alertas.")
 
 
 if __name__ == "__main__":
