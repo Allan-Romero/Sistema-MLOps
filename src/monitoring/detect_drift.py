@@ -198,6 +198,22 @@ def registrar_alertas(resultado):
 
     return ids
 
+def obtener_distribuciones(variable, caso_uso="churn"):
+    """
+    Retorna los valores de una variable en el conjunto de referencia y en
+    los datos de producción, para su comparación visual.
+    """
+    referencia = cargar_referencia()
+    actual = cargar_produccion(caso_uso=caso_uso)
+
+    if variable not in COLUMNAS_NUMERICAS:
+        raise ValueError(f"La variable {variable} no es analizada por el sistema.")
+
+    return {
+        "referencia": referencia[variable].dropna(),
+        "actual": actual[variable].dropna() if not actual.empty else actual,
+    }
+
 def main():
     """Ejecuta la detección de drift y muestra el resultado en consola."""
     print("========== DETECCIÓN DE DATA DRIFT ==========\n")

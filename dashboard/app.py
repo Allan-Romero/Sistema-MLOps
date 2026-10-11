@@ -5,6 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import streamlit as st
 from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos, obtener_versiones
+import numpy as np
+from src.monitoring.detect_drift import COLUMNAS_NUMERICAS, obtener_distribuciones
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -145,5 +147,61 @@ if alertas:
         hide_index=True,
     )
     st.caption(f"Mostrando las {len(df_vista)} alertas más recientes")
+
+    # ----- Comparación de distribuciones -----
+    st.markdown("##### Comparación de distribuciones")
+
+    variables_con_alerta = df_alertas["Variable afectada"].unique().tolist()
+    opciones = [v for v in COLUMNAS_NUMERICAS if v in variables_con_alerta]
+    if not opciones:
+        opciones = COLUMNAS_NUMERICAS
+
+    variable = st.selectbox(
+        "Variable a analizar",
+        opciones,
+        help="Se listan primero las variables que generaron alertas"
+    )
+
+    try:
+        distribuciones = obtener_distribuciones(variable)
+        serie_ref = distribuciones["referencia"]
+        serie_act = distribuciones["actual"]
+
+        if len(serie_act) == 0:
+            st.warning(
+                "No hay datos de producción suficientes para comparar. "
+                "Genere predicciones desde la API para alimentar el análisis."
+            )
+        else:
+            # Intervalos comunes para que ambas series sean comparables
+            minimo = float(min(serie_ref.min(), serie_act.min()))
+            maximo = float(max(serie_ref.max(), serie_act.max()))
+            cortes = np.linspace(minimo, maximo, 25)
+
+            conteo_ref, _ = np.histogram(serie_ref, bins=cortes)
+            conteo_act, _ = np.histogram(serie_act, bins=cortes)
+
+            # Normalización a proporciones para comparar conjuntos de distinto tamaño
+            prop_ref = conteo_ref / max(conteo_ref.sum(), 1)
+            prop_act = conteo_act / max(conteo_act.sum(), 1)
+
+            centros = (cortes[:-1] + cortes[1:]) / 2
+
+            df_dist = pd.DataFrame(
+                {"Referencia": prop_ref, "Producción": prop_act},
+                index=np.round(centros, 2),
+            )
+            df_dist.index.name = variable
+
+            st.area_chart(df_dist, height=320)
+            st.caption(
+                f"Distribución de {variable} en el conjunto de referencia "
+                f"({len(serie_ref)} registros) frente a los datos de producción "
+                f"({len(serie_act)} registros). Los valores se expresan como "
+                "proporción del total para permitir la comparación."
+            )
+    except Exception as error:
+        st.warning(f"No fue posible generar la comparación: {error}")
+
 else:
     st.info("Sin alertas registradas")
