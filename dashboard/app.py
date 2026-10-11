@@ -99,16 +99,51 @@ else:
     st.warning("No hay predicciones registradas en la base de datos")
 
 st.divider()
-
-# Sección de alertas de drift (se completa en S1-A16)
 st.subheader("Alertas de drift")
 
-alertas = obtener_alertas(limite=10)
+alertas = obtener_alertas(limite=50)
 
 if alertas:
     columnas = ["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
                 "Descripción", "Revisada", "Fecha"]
     df_alertas = pd.DataFrame(alertas, columns=columnas)
-    st.dataframe(df_alertas, width='stretch', hide_index=True)
+
+    # Resumen por severidad
+    conteo = df_alertas["Nivel de drift"].value_counts()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Severidad alta", int(conteo.get("alto", 0)))
+    col2.metric("Severidad media", int(conteo.get("medio", 0)))
+    col3.metric("Pendientes de revisión",
+                int((~df_alertas["Revisada"]).sum()))
+
+    # Aviso destacado si hay alertas críticas sin revisar
+    criticas = df_alertas[
+        (df_alertas["Nivel de drift"] == "alto")
+        & (~df_alertas["Revisada"])
+    ]
+    if not criticas.empty:
+        variables = ", ".join(criticas["Variable afectada"].unique())
+        st.error(
+            f"Se detectó drift de severidad alta sin revisar en: {variables}. "
+            "Se recomienda evaluar la necesidad de reentrenar el modelo."
+        )
+
+    # Indicador visual de severidad en cada fila
+    iconos = {"alto": "🔴 Alto", "medio": "🟠 Medio", "bajo": "🟢 Bajo"}
+    df_vista = df_alertas.copy()
+    df_vista["Nivel de drift"] = df_vista["Nivel de drift"].map(
+        lambda nivel: iconos.get(nivel, nivel)
+    )
+    df_vista["Revisada"] = df_vista["Revisada"].map(
+        lambda valor: "Sí" if valor else "No"
+    )
+
+    st.dataframe(
+        df_vista[["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
+                  "Revisada", "Fecha", "Descripción"]],
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(f"Mostrando las {len(df_vista)} alertas más recientes")
 else:
     st.info("Sin alertas registradas")
