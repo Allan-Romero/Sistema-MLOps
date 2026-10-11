@@ -38,3 +38,4 @@ data/processed/
 mlflow.db*
 mlruns/
 mlartifacts/reports/
+reports/
