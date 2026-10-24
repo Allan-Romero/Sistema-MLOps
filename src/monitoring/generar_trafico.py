@@ -1,7 +1,11 @@
+import os
 import random
+
 import requests
 
-URL = "http://localhost:8000/predict"
+# Dentro de docker compose se apunta al servicio api (API_URL=http://api:8000)
+API_URL = os.getenv("API_URL", "http://localhost:8000")
+URL = f"{API_URL}/predict"
 
 CONTRATOS = ["Month-to-month", "One year", "Two year"]
 PAGOS = ["Electronic check", "Mailed check",

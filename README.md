@@ -78,6 +78,50 @@ individual.
 | 9 | Levantar la API | Levantar la API |
 | 10 | Levantar el dashboard | Ejecutar el dashboard |
 
+## Opcion rapida: levantar todo con Docker Compose
+
+Los cuatro servicios estan contenerizados, asi que no hace falta una terminal
+por servicio. Desde la raiz del proyecto:
+
+```powershell
+docker compose up -d --build
+```
+
+| Servicio | URL | Contenedor |
+|---|---|---|
+| API (FastAPI) | http://localhost:8000/docs | `mlops_api` |
+| Dashboard (Streamlit) | http://localhost:8501 | `mlops_dashboard` |
+| MLflow | http://localhost:5000 | `mlops_mlflow` |
+| PostgreSQL | `localhost:5432` | `mlops_postgres` |
+
+La primera ejecucion construye las imagenes y tarda varios minutos; las
+siguientes reutilizan la cache. Las cuatro tablas se crean automaticamente
+cuando el volumen de PostgreSQL se inicializa por primera vez
+(`src/database/schema.sql` se monta como script de inicializacion). Si el
+volumen ya existia, se siguen creando con el comando del apartado
+*Crear las tablas*.
+
+Comandos frecuentes:
+
+```powershell
+docker compose ps                  # estado de los servicios
+docker compose logs -f api         # logs de un servicio
+docker compose restart api         # reiniciar un servicio
+docker compose down                # detener todo (conserva los datos)
+docker compose down -v             # detener y borrar el volumen de PostgreSQL
+```
+
+El codigo de `src/` y `dashboard/` se monta dentro de los contenedores, por lo
+que los cambios se recargan sin reconstruir la imagen. Solo hay que reconstruir
+(`docker compose up -d --build`) al cambiar las dependencias de
+`docker/requirements-*.txt`.
+
+El pipeline de entrenamiento y la deteccion de drift se siguen ejecutando desde
+el entorno virtual del host (apartados *Ejecutar el pipeline* y
+*Ejecutar la deteccion*): se conectan a los contenedores por los puertos
+publicados `5000` y `5432`. Los apartados siguientes describen la alternativa
+manual, servicio por servicio.
+
 ## Requisitos previos
 
 - Docker Desktop instalado y en ejecución.
