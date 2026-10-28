@@ -40,14 +40,18 @@ del repositorio.
 - `dashboard/`: archivos del dashboard y visualizaciones.
 - `tests/`: pruebas del proyecto.
 - `docs/`: documentación técnica y funcional.
-- `docker/`: configuración relacionada con Docker.
+- `docker/`: Dockerfiles de la API, el dashboard y MLflow, con un archivo de
+  dependencias por servicio.
 - `notebooks/`: análisis exploratorio y experimentación.
 - `reports/`: reportes de drift generados por Evidently.
 
 ## Archivos base
 
-- `requirements.txt`
-- `docker-compose.yml`
+- `docker-compose.yml`: orquestación de los cuatro servicios.
+- `docker/*.Dockerfile`: imágenes de la API, el dashboard y MLflow.
+- `docker/requirements-*.txt`: dependencias de cada imagen.
+- `requirements.txt`: dependencias del entorno virtual local, usado para el
+  pipeline, la detección de drift y las pruebas.
 - `.env.example`
 - `.gitignore`
 
@@ -61,27 +65,43 @@ del repositorio.
 
 # Puesta en marcha
 
-Esta sección describe el orden recomendado para levantar el sistema completo
-desde cero. Cada apartado posterior detalla los componentes de forma
-individual.
+Los cuatro servicios del sistema (PostgreSQL, MLflow, la API y el dashboard)
+están contenerizados y se levantan con un solo comando. El pipeline de
+entrenamiento, la detección de drift y las pruebas se ejecutan desde el
+entorno virtual local y se conectan a esos servicios por los puertos
+publicados.
 
 | Paso | Acción | Apartado |
 |---|---|---|
 | 1 | Crear y activar el entorno virtual | Requisitos previos |
-| 2 | Instalar dependencias | Instalar dependencias |
+| 2 | Instalar dependencias locales | Instalar dependencias |
 | 3 | Configurar variables de entorno | Configurar variables de entorno |
-| 4 | Levantar PostgreSQL | Levantar PostgreSQL |
-| 5 | Crear las tablas | Crear las tablas |
-| 6 | Levantar MLflow | MLflow |
-| 7 | Ejecutar el pipeline de entrenamiento | Ejecutar el pipeline |
-| 8 | Promover el modelo candidato a modelo activo | Modelo activo para la API |
-| 9 | Levantar la API | Levantar la API |
-| 10 | Levantar el dashboard | Ejecutar el dashboard |
+| 4 | Levantar los servicios | Levantar el sistema |
+| 5 | Ejecutar el pipeline de entrenamiento | Ejecutar el pipeline |
+| 6 | Promover el modelo candidato a modelo activo | Modelo activo para la API |
+| 7 | Generar tráfico y analizar drift (opcional) | Monitoreo de data drift |
 
-## Opcion rapida: levantar todo con Docker Compose
+## Requisitos previos
 
-Los cuatro servicios estan contenerizados, asi que no hace falta una terminal
-por servicio. Desde la raiz del proyecto:
+- Docker Desktop instalado y en ejecución.
+- Python 3.11 instalado.
+- Entorno virtual creado y activado: `py -m venv venv` y luego `venv/Scripts/activate`
+- Si da error al activar: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+## Instalar dependencias
+
+El entorno virtual se utiliza para el pipeline de entrenamiento, la detección
+de drift y las pruebas. Los servicios contenerizados instalan sus propias
+dependencias al construir las imágenes.
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+## Levantar el sistema
+
+Con las variables de entorno ya configuradas (apartado *Configurar variables
+de entorno*), desde la raíz del proyecto:
 
 ```powershell
 docker compose up -d --build
@@ -94,12 +114,9 @@ docker compose up -d --build
 | MLflow | http://localhost:5000 | `mlops_mlflow` |
 | PostgreSQL | `localhost:5432` | `mlops_postgres` |
 
-La primera ejecucion construye las imagenes y tarda varios minutos; las
-siguientes reutilizan la cache. Las cuatro tablas se crean automaticamente
-cuando el volumen de PostgreSQL se inicializa por primera vez
-(`src/database/schema.sql` se monta como script de inicializacion). Si el
-volumen ya existia, se siguen creando con el comando del apartado
-*Crear las tablas*.
+La primera ejecución construye las imágenes y tarda varios minutos; las
+siguientes reutilizan la caché. La API y el dashboard esperan a que
+PostgreSQL esté disponible antes de arrancar.
 
 Comandos frecuentes:
 
@@ -111,31 +128,13 @@ docker compose down                # detener todo (conserva los datos)
 docker compose down -v             # detener y borrar el volumen de PostgreSQL
 ```
 
-El codigo de `src/` y `dashboard/` se monta dentro de los contenedores, por lo
-que los cambios se recargan sin reconstruir la imagen. Solo hay que reconstruir
-(`docker compose up -d --build`) al cambiar las dependencias de
+El código de `src/` y `dashboard/` se monta dentro de los contenedores, por lo
+que los cambios se recargan sin reconstruir la imagen. Solo es necesario
+reconstruir (`docker compose up -d --build`) al modificar las dependencias de
 `docker/requirements-*.txt`.
 
-El pipeline de entrenamiento y la deteccion de drift se siguen ejecutando desde
-el entorno virtual del host (apartados *Ejecutar el pipeline* y
-*Ejecutar la deteccion*): se conectan a los contenedores por los puertos
-publicados `5000` y `5432`. Los apartados siguientes describen la alternativa
-manual, servicio por servicio.
-
-## Requisitos previos
-
-- Docker Desktop instalado y en ejecución.
-- Python 3.11 instalado.
-- Entorno virtual creado y activado: `py -m venv venv` y luego `venv/Scripts/activate`
-- Si da error al activar: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-
-## Instalar dependencias
-
-Desde la raíz del proyecto ejecutar:
-
-```powershell
-python -m pip install -r requirements.txt
-```
+Los datos persisten fuera de los contenedores: la base de datos en el volumen
+`postgres_data`, y el historial de MLflow en `mlflow.db` y `mlartifacts/`.
 
 ---
 
@@ -182,29 +181,18 @@ POSTGRES_PASSWORD=contraseña
 POSTGRES_DB=mlops_db
 ```
 
+Docker Compose usa este archivo para crear la base de datos y para entregar
+las credenciales a la API y al dashboard. Los scripts que se ejecutan desde el
+entorno virtual también lo leen y, salvo que se definan `POSTGRES_HOST` y
+`POSTGRES_PORT`, se conectan a `localhost:5432`.
+
 El archivo `.env` no debe subirse al repositorio.
 
-## Levantar PostgreSQL
+## Tablas
 
-```powershell
-docker compose up -d
-```
-
-Verificar que el contenedor esté funcionando:
-
-```powershell
-docker compose ps
-```
-
-## Crear las tablas
-
-Desde PowerShell ejecutar:
-
-```powershell
-Get-Content .\src\database\schema.sql -Raw | docker exec -i mlops_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
-```
-
-El esquema crea cuatro tablas:
+El esquema `src/database/schema.sql` se monta como script de inicialización
+del contenedor de PostgreSQL, por lo que las cuatro tablas se crean
+automáticamente la primera vez que se inicializa el volumen:
 
 | Tabla | Contenido |
 |---|---|
@@ -213,7 +201,16 @@ El esquema crea cuatro tablas:
 | `model_versions` | Historial de versiones del modelo con su estado |
 | `alerts` | Alertas generadas por el monitoreo de data drift |
 
+Si el volumen ya existía antes de incorporar el esquema, o si se modifica
+`schema.sql`, las tablas pueden crearse manualmente:
+
+```powershell
+Get-Content .\src\database\schema.sql -Raw | docker exec -i mlops_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
 ## Verificar conexión a PostgreSQL
+
+Desde el entorno virtual, con los servicios levantados:
 
 ```powershell
 python -m src.database.test_connection
@@ -234,25 +231,18 @@ MLflow almacena:
 - Artefactos del modelo.
 - Historial de ejecuciones.
 
-## Levantar MLflow
+El servidor forma parte del stack y su interfaz queda disponible en:
 
-Desde la raíz del proyecto, con el entorno virtual activado:
+`http://localhost:5000`
 
-```powershell
-mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1
-```
+El backend de metadatos es `mlflow.db` y los artefactos se guardan en
+`mlartifacts/`; ambos se montan desde el repositorio, de modo que el historial
+sobrevive a `docker compose down` y a la reconstrucción de las imágenes.
 
-La interfaz estará disponible en:
-
-`http://127.0.0.1:5000`
-
-> **Importante:** MLflow debe estar en ejecución antes de lanzar el pipeline.
-> Si no lo está, el pipeline se interrumpe en el paso de registro de
-> experimentos con un error de conexión al puerto 5000.
-
-Para detener MLflow presionar:
-
-`Ctrl + C`
+> **Importante:** el pipeline de entrenamiento registra los experimentos
+> contra `http://127.0.0.1:5000`. Si el stack no está levantado, el pipeline
+> se interrumpe en el paso de registro de experimentos con un error de
+> conexión al puerto 5000.
 
 ---
 
@@ -260,8 +250,7 @@ Para detener MLflow presionar:
 
 ## Ejecutar el pipeline
 
-Con MLflow en ejecución y PostgreSQL levantado, abrir otra terminal con el
-entorno virtual activado y ejecutar:
+Con los servicios levantados y el entorno virtual activado:
 
 ```powershell
 python -m src.training.run_pipeline
@@ -302,13 +291,20 @@ promover el candidato a modelo activo:
 
 ```powershell
 Copy-Item models/churn_model_candidate.joblib models/churn_model_v1.joblib
+docker compose restart api
 ```
 
 En Git Bash o Linux:
 
 ```bash
 cp models/churn_model_candidate.joblib models/churn_model_v1.joblib
+docker compose restart api
 ```
+
+La carpeta `models/` se monta en el contenedor de la API en modo solo lectura,
+por lo que el archivo promovido queda disponible de inmediato. El reinicio es
+necesario porque la API conserva el modelo en memoria desde la primera
+predicción.
 
 Esta promoción es manual en la versión actual. La automatización de la
 selección del modelo activo, junto con las estrategias de A/B testing y
@@ -323,21 +319,15 @@ rollback, está prevista para una fase posterior del desarrollo.
 
 # Uso de la API
 
-La plataforma incluye una API desarrollada con **FastAPI** para servir el modelo de predicción de churn.
+La plataforma incluye una API desarrollada con **FastAPI** para servir el
+modelo de predicción de churn. Se ejecuta en el contenedor `mlops_api` y está
+disponible en:
 
-## Levantar la API
+`http://localhost:8000`
 
-```powershell
-python -m uvicorn src.api.main:app --reload
-```
+La documentación interactiva Swagger UI está disponible en:
 
-La API estará disponible en:
-
-`http://127.0.0.1:8000`
-
-La documentación interactiva Swagger UI estará disponible en:
-
-`http://127.0.0.1:8000/docs`
+`http://localhost:8000/docs`
 
 ## Endpoint raíz
 
@@ -375,12 +365,16 @@ Ejemplo de respuesta:
 También puede probarse desde PowerShell:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://localhost:8000/health
 ```
 
 > El campo `model_loaded` indica si el modelo ya fue cargado en memoria. La
 > carga es diferida: el modelo se carga en la primera solicitud de
 > predicción, por lo que este campo responde `false` hasta ese momento.
+
+Este endpoint también se usa como healthcheck del contenedor, de modo que
+`docker compose ps` reporta la API como `healthy` cuando responde
+correctamente.
 
 ## Endpoint de predicción
 
@@ -441,19 +435,13 @@ análisis de data drift.
 
 ## Probar la API con Swagger
 
-1. Ejecutar la API con Uvicorn.
-2. Abrir `http://127.0.0.1:8000/docs`.
+1. Verificar que el stack esté levantado con `docker compose ps`.
+2. Abrir `http://localhost:8000/docs`.
 3. Seleccionar `/health` o `/predict`.
 4. Presionar **Try it out**.
 5. Ingresar los datos requeridos.
 6. Presionar **Execute**.
 7. Verificar que la respuesta sea `200 OK`.
-
-## Detener la API
-
-En la terminal donde se está ejecutando Uvicorn presionar:
-
-`Ctrl + C`
 
 ---
 
@@ -485,9 +473,33 @@ Se adopta la escala estándar del PSI:
 El análisis requiere un mínimo de 30 registros de producción para ejecutarse,
 con el fin de evitar conclusiones sobre muestras no representativas.
 
+## Generar tráfico de prueba
+
+Para alimentar el análisis con datos de producción, el proyecto incluye un
+generador de predicciones de prueba. Con el stack levantado:
+
+```powershell
+python -m src.monitoring.generar_trafico
+```
+
+El script toma clientes del propio conjunto de referencia y los envía a la
+API, de modo que queden registrados en la base de datos como cualquier otra
+predicción. Acepta dos argumentos opcionales: la cantidad de predicciones y un
+factor de drift que altera deliberadamente `TotalCharges`.
+
+```powershell
+python -m src.monitoring.generar_trafico 150 1.0    # escenario de control
+python -m src.monitoring.generar_trafico 150 1.8    # escenario con drift
+```
+
+Con el factor en `1.0` la distribución enviada reproduce la del baseline, por
+lo que no debería generarse drift; con un factor mayor se provoca de forma
+controlada para validar el monitoreo. El destino es `http://localhost:8000`
+salvo que se defina otra dirección en la variable de entorno `API_URL`.
+
 ## Ejecutar la detección
 
-Con PostgreSQL levantado y predicciones registradas en la base:
+Con predicciones registradas en la base:
 
 ```powershell
 python -m src.monitoring.detect_drift
@@ -504,30 +516,12 @@ Adicionalmente genera un reporte visual en:
 > **Nota:** la carpeta `reports/` contiene artefactos generados y no se
 > versiona en el repositorio.
 
-## Generar tráfico de prueba
-
-Para alimentar el análisis con datos de producción, el proyecto incluye un
-generador de predicciones de prueba. Con la API en ejecución:
-
-```powershell
-python -m src.monitoring.generar_trafico
-```
-
-El script envía predicciones a la API con valores aleatorios dentro de
-rangos realistas, de modo que queden registradas en la base de datos como
-cualquier otra predicción.
-
 ---
 
 # Dashboard
 
-## Ejecutar el dashboard
-
-```powershell
-streamlit run dashboard/app.py
-```
-
-El dashboard estará disponible en:
+El dashboard se ejecuta en el contenedor `mlops_dashboard` y está disponible
+en:
 
 `http://localhost:8501`
 
@@ -540,15 +534,16 @@ El dashboard presenta:
 - Alertas de data drift con indicación de severidad.
 - Comparación visual de distribuciones entre referencia y producción.
 
-Para detener el dashboard presionar:
-
-`Ctrl + C`
+Lee la información directamente de PostgreSQL, por lo que basta con recargar
+la página para ver los resultados de una nueva ejecución del pipeline o de la
+detección de drift.
 
 ---
 
 # Pruebas
 
-Ejecutar la suite completa desde la raíz del proyecto:
+Ejecutar la suite completa desde la raíz del proyecto, con el entorno virtual
+activado:
 
 ```powershell
 python -m pytest -v
