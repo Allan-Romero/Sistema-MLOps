@@ -1,0 +1,12 @@
+# Dependencias de la API de predicciones (FastAPI + modelo de churn)
+# Versiones alineadas con requirements.txt del proyecto
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+pydantic==2.13.5
+python-multipart==0.0.32
+pandas==3.0.5
+numpy==2.4.6
+scikit-learn==1.9.1
+joblib==1.6.0
+psycopg2-binary==2.9.12
+python-dotenv==1.2.3

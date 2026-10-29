@@ -37,4 +37,5 @@ data/processed/
 # MLflow local
 mlflow.db*
 mlruns/
-mlartifacts/
+mlartifacts/reports/
+reports/
