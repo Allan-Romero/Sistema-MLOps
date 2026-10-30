@@ -204,3 +204,34 @@ def obtener_datos_entrada(caso_uso="churn", limite=1000):
     """
     filas = ejecutar_consulta(query, (caso_uso, limite))
     return [fila[0] for fila in filas]
+
+
+def registrar_etiqueta_real(prediction_id, etiqueta_real):
+    """
+    Registra el resultado verdadero de una predicción ya almacenada.
+
+    prediction_id: identificador de la predicción en la tabla predictions
+    etiqueta_real: valor observado (0 o 1)
+
+    Retorna el id de la predicción actualizada, o None si no existe ninguna
+    con ese identificador.
+    """
+    query = """
+        UPDATE predictions
+        SET etiqueta_real = %s,
+            etiqueta_registrada_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+        RETURNING id;
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (etiqueta_real, prediction_id))
+            fila = cursor.fetchone()
+        conn.commit()
+        return fila[0] if fila else None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

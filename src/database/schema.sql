@@ -9,8 +9,19 @@ CREATE TABLE IF NOT EXISTS predictions (
     prediction INTEGER NOT NULL,
     probability FLOAT,
     model_version VARCHAR(20),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Resultado verdadero de la predicción (0 o 1). Admite nulos porque al
+    -- momento de predecir todavía no se conoce.
+    etiqueta_real INTEGER,
+    -- Momento en que se conoció y registró esa etiqueta.
+    etiqueta_registrada_at TIMESTAMP
 );
+
+-- Columnas de etiqueta real para las bases creadas antes del Sprint 4
+ALTER TABLE predictions
+    ADD COLUMN IF NOT EXISTS etiqueta_real INTEGER;
+ALTER TABLE predictions
+    ADD COLUMN IF NOT EXISTS etiqueta_registrada_at TIMESTAMP;
 
 -- Tabla de métricas históricas del modelo
 CREATE TABLE IF NOT EXISTS model_metrics (
