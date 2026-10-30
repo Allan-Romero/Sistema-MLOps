@@ -237,7 +237,7 @@ def registrar_etiqueta_real(prediction_id, etiqueta_real):
         conn.close()
 
 
-def obtener_desempeno_por_version(caso_uso="churn"):
+def obtener_desempeno_por_version(caso_uso="churn", desde=None):
     """
     Calcula el desempeño real de cada versión del modelo sobre las
     predicciones cuya etiqueta verdadera ya se conoce.
@@ -245,6 +245,9 @@ def obtener_desempeno_por_version(caso_uso="churn"):
     Retorna, por versión: tamaño de la muestra, accuracy, precision, recall,
     f1_score y roc_auc, las mismas métricas que el proyecto registra durante
     el entrenamiento, de modo que ambos números sean comparables.
+
+    desde: si se indica, solo considera las predicciones posteriores a esa
+    fecha, que es como se acota el cálculo a un experimento en curso.
 
     El tamaño de la muestra se informa siempre: una diferencia calculada
     sobre pocas predicciones no permite concluir nada.
@@ -255,6 +258,7 @@ def obtener_desempeno_por_version(caso_uso="churn"):
             FROM predictions
             WHERE caso_uso = %s
               AND etiqueta_real IS NOT NULL
+              AND created_at >= COALESCE(%s::timestamp, created_at)
         ),
         matriz AS (
             SELECT model_version,
@@ -298,16 +302,19 @@ def obtener_desempeno_por_version(caso_uso="churn"):
         LEFT JOIN auc a ON a.model_version = m.model_version
         ORDER BY m.model_version;
     """
-    return ejecutar_consulta(query, (caso_uso,))
+    return ejecutar_consulta(query, (caso_uso, desde))
 
 
-def obtener_volumen_por_version(caso_uso="churn"):
+def obtener_volumen_por_version(caso_uso="churn", desde=None):
     """
     Consulta el volumen de tráfico que atendió cada versión del modelo.
 
     Retorna, por versión: total de predicciones, cuántas tienen etiqueta
     real, cuántas no, el porcentaje del tráfico total y las fechas de la
     primera y la última predicción.
+
+    desde: si se indica, solo cuenta las predicciones posteriores a esa
+    fecha, para acotar el reparto a un experimento en curso.
     """
     query = """
         SELECT model_version,
@@ -319,10 +326,11 @@ def obtener_volumen_por_version(caso_uso="churn"):
                MAX(created_at) AS ultima_prediccion
         FROM predictions
         WHERE caso_uso = %s
+          AND created_at >= COALESCE(%s::timestamp, created_at)
         GROUP BY model_version
         ORDER BY predicciones DESC;
     """
-    return ejecutar_consulta(query, (caso_uso,))
+    return ejecutar_consulta(query, (caso_uso, desde))
 
 
 def obtener_historial_despliegues(caso_uso="churn", limite=20):
@@ -343,3 +351,40 @@ def obtener_historial_despliegues(caso_uso="churn", limite=20):
         LIMIT %s;
     """
     return ejecutar_consulta(query, (caso_uso, limite))
+
+
+def obtener_experimento_activo(caso_uso="churn"):
+    """
+    Consulta el experimento A/B vigente para un caso de uso.
+
+    Retorna la fila del experimento activo, o None si no hay ninguno en
+    curso. El esquema garantiza que exista a lo sumo uno por caso de uso.
+    """
+    query = """
+        SELECT id, caso_uso, version_a, version_b, porcentaje_trafico_b,
+               estado, version_ganadora, started_at, ended_at
+        FROM experiments
+        WHERE caso_uso = %s AND estado = 'activo'
+        LIMIT 1;
+    """
+    filas = ejecutar_consulta(query, (caso_uso,))
+    return filas[0] if filas else None
+
+
+def obtener_ultimo_experimento(caso_uso="churn"):
+    """
+    Consulta el experimento A/B más reciente, esté activo o cerrado.
+
+    Permite que el dashboard muestre el último resultado conocido cuando no
+    hay ningún experimento en curso.
+    """
+    query = """
+        SELECT id, caso_uso, version_a, version_b, porcentaje_trafico_b,
+               estado, version_ganadora, started_at, ended_at
+        FROM experiments
+        WHERE caso_uso = %s
+        ORDER BY started_at DESC
+        LIMIT 1;
+    """
+    filas = ejecutar_consulta(query, (caso_uso,))
+    return filas[0] if filas else None

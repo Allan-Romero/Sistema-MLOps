@@ -4,7 +4,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
-from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos, obtener_versiones
+from src.database.crud import (obtener_metricas, obtener_predicciones, obtener_alertas,
+                               obtener_comparacion_modelos, obtener_versiones,
+                               obtener_experimento_activo, obtener_ultimo_experimento,
+                               obtener_desempeno_por_version, obtener_volumen_por_version)
 import numpy as np
 from src.monitoring.detect_drift import COLUMNAS_NUMERICAS, obtener_distribuciones
 
@@ -205,3 +208,143 @@ if alertas:
 
 else:
     st.info("Sin alertas registradas")
+st.divider()
+st.subheader("Experimento A/B")
+
+# Muestra mínima por grupo para considerar concluyente una diferencia.
+# Se mantiene el mismo umbral que usa el monitoreo de drift.
+MUESTRA_MINIMA = 30
+
+CASO_USO = "churn"
+
+experimento = obtener_experimento_activo(CASO_USO)
+historico = obtener_ultimo_experimento(CASO_USO) if experimento is None else None
+datos = experimento or historico
+
+if datos is None:
+    st.info(
+        "No hay experimentos A/B registrados para el caso de uso "
+        f"{CASO_USO}. La sección se activa cuando se configure el primero "
+        "en la tabla experiments."
+    )
+else:
+    (_, caso_uso, version_a, version_b, porcentaje_b,
+     estado, ganadora, inicio, fin) = datos
+
+    if experimento is not None:
+        st.caption(
+            f"Experimento en curso · control {version_a} frente a candidata "
+            f"{version_b} · inicio {inicio:%Y-%m-%d %H:%M}"
+        )
+    else:
+        cierre = f"{fin:%Y-%m-%d %H:%M}" if fin else "sin fecha de cierre"
+        st.info(
+            f"No hay experimento activo. El último ({estado}) comparó "
+            f"{version_a} con {version_b} y cerró el {cierre}. "
+            f"Versión ganadora: {ganadora or 'sin definir'}."
+        )
+
+    # ----- Reparto de tráfico: configurado frente a obtenido -----
+    volumen = {fila[0]: fila for fila in obtener_volumen_por_version(caso_uso, desde=inicio)}
+    predicciones_a = volumen[version_a][1] if version_a in volumen else 0
+    predicciones_b = volumen[version_b][1] if version_b in volumen else 0
+    total_experimento = predicciones_a + predicciones_b
+
+    if total_experimento:
+        real_b = 100 * predicciones_b / total_experimento
+    else:
+        real_b = 0.0
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Tráfico configurado a la candidata", f"{porcentaje_b} %")
+    col2.metric(
+        "Tráfico obtenido por la candidata",
+        f"{real_b:.1f} %",
+        delta=f"{real_b - float(porcentaje_b):+.1f} pp",
+        delta_color="off",
+    )
+    col3.metric("Predicciones en el experimento", total_experimento)
+
+    # ----- Desempeño real de cada grupo -----
+    desempeno = {fila[0]: fila for fila in obtener_desempeno_por_version(caso_uso, desde=inicio)}
+
+    def fila_version(version, rol, predicciones):
+        """Arma la fila de la tabla comparativa para una de las versiones."""
+        medidas = desempeno.get(version)
+        if medidas is None:
+            return {
+                "Versión": version, "Rol": rol, "Predicciones": predicciones,
+                "Muestra etiquetada": 0, "Accuracy": None, "Precision": None,
+                "Recall": None, "F1-score": None, "ROC-AUC": None,
+            }
+        _, muestra, accuracy, precision, recall, f1, roc_auc = medidas
+        return {
+            "Versión": version,
+            "Rol": rol,
+            "Predicciones": predicciones,
+            "Muestra etiquetada": muestra,
+            "Accuracy": float(accuracy) if accuracy is not None else None,
+            "Precision": float(precision) if precision is not None else None,
+            "Recall": float(recall) if recall is not None else None,
+            "F1-score": float(f1) if f1 is not None else None,
+            "ROC-AUC": float(roc_auc) if roc_auc is not None else None,
+        }
+
+    comparacion = [
+        fila_version(version_a, "Control", predicciones_a),
+        fila_version(version_b, "Candidata", predicciones_b),
+    ]
+    df_experimento = pd.DataFrame(comparacion)
+
+    st.dataframe(
+        df_experimento,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            columna: st.column_config.NumberColumn(format="%.3f")
+            for columna in ["Accuracy", "Precision", "Recall", "F1-score", "ROC-AUC"]
+        },
+    )
+
+    # ----- Qué versión lleva ventaja -----
+    muestra_a = df_experimento.loc[0, "Muestra etiquetada"]
+    muestra_b = df_experimento.loc[1, "Muestra etiquetada"]
+    f1_a = df_experimento.loc[0, "F1-score"]
+    f1_b = df_experimento.loc[1, "F1-score"]
+
+    if muestra_a < MUESTRA_MINIMA or muestra_b < MUESTRA_MINIMA:
+        st.warning(
+            f"🟠 Muestra insuficiente para concluir: {muestra_a} predicciones "
+            f"etiquetadas en {version_a} y {muestra_b} en {version_b}. "
+            f"Se requieren al menos {MUESTRA_MINIMA} por grupo, porque una "
+            "diferencia calculada sobre pocos casos no es concluyente."
+        )
+    else:
+        diferencia = f1_b - f1_a
+        if diferencia > 0:
+            st.success(
+                f"🟢 La candidata {version_b} lleva ventaja: F1-score "
+                f"{f1_b:.3f} frente a {f1_a:.3f} del control "
+                f"({diferencia:+.3f})."
+            )
+        elif diferencia < 0:
+            st.error(
+                f"🔴 La candidata {version_b} va por debajo del control: "
+                f"F1-score {f1_b:.3f} frente a {f1_a:.3f} ({diferencia:+.3f}). "
+                "Se recomienda evaluar el rollback."
+            )
+        else:
+            st.info(
+                f"Ambas versiones empatan en F1-score ({f1_a:.3f}). "
+                "Conviene prolongar el experimento."
+            )
+
+        st.bar_chart(
+            df_experimento.set_index("Versión")["F1-score"],
+            height=240,
+        )
+        st.caption(
+            "F1-score real de cada versión sobre las predicciones del "
+            "experimento con etiqueta conocida. Es la métrica de decisión "
+            "del proyecto."
+        )
