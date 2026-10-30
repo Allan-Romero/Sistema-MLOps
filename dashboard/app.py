@@ -5,6 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import streamlit as st
 from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos, obtener_versiones
+import numpy as np
+from src.monitoring.detect_drift import COLUMNAS_NUMERICAS, obtener_distribuciones
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -99,16 +101,107 @@ else:
     st.warning("No hay predicciones registradas en la base de datos")
 
 st.divider()
-
-# Sección de alertas de drift (se completa en S1-A16)
 st.subheader("Alertas de drift")
 
-alertas = obtener_alertas(limite=10)
+alertas = obtener_alertas(limite=50)
 
 if alertas:
     columnas = ["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
                 "Descripción", "Revisada", "Fecha"]
     df_alertas = pd.DataFrame(alertas, columns=columnas)
-    st.dataframe(df_alertas, width='stretch', hide_index=True)
+
+    # Resumen por severidad
+    conteo = df_alertas["Nivel de drift"].value_counts()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Severidad alta", int(conteo.get("alto", 0)))
+    col2.metric("Severidad media", int(conteo.get("medio", 0)))
+    col3.metric("Pendientes de revisión",
+                int((~df_alertas["Revisada"]).sum()))
+
+    # Aviso destacado si hay alertas críticas sin revisar
+    criticas = df_alertas[
+        (df_alertas["Nivel de drift"] == "alto")
+        & (~df_alertas["Revisada"])
+    ]
+    if not criticas.empty:
+        variables = ", ".join(criticas["Variable afectada"].unique())
+        st.error(
+            f"Se detectó drift de severidad alta sin revisar en: {variables}. "
+            "Se recomienda evaluar la necesidad de reentrenar el modelo."
+        )
+
+    # Indicador visual de severidad en cada fila
+    iconos = {"alto": "🔴 Alto", "medio": "🟠 Medio", "bajo": "🟢 Bajo"}
+    df_vista = df_alertas.copy()
+    df_vista["Nivel de drift"] = df_vista["Nivel de drift"].map(
+        lambda nivel: iconos.get(nivel, nivel)
+    )
+    df_vista["Revisada"] = df_vista["Revisada"].map(
+        lambda valor: "Sí" if valor else "No"
+    )
+
+    st.dataframe(
+        df_vista[["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
+                  "Revisada", "Fecha", "Descripción"]],
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(f"Mostrando las {len(df_vista)} alertas más recientes")
+
+    # ----- Comparación de distribuciones -----
+    st.markdown("##### Comparación de distribuciones")
+
+    variables_con_alerta = df_alertas["Variable afectada"].unique().tolist()
+    opciones = [v for v in COLUMNAS_NUMERICAS if v in variables_con_alerta]
+    if not opciones:
+        opciones = COLUMNAS_NUMERICAS
+
+    variable = st.selectbox(
+        "Variable a analizar",
+        opciones,
+        help="Se listan primero las variables que generaron alertas"
+    )
+
+    try:
+        distribuciones = obtener_distribuciones(variable)
+        serie_ref = distribuciones["referencia"]
+        serie_act = distribuciones["actual"]
+
+        if len(serie_act) == 0:
+            st.warning(
+                "No hay datos de producción suficientes para comparar. "
+                "Genere predicciones desde la API para alimentar el análisis."
+            )
+        else:
+            # Intervalos comunes para que ambas series sean comparables
+            minimo = float(min(serie_ref.min(), serie_act.min()))
+            maximo = float(max(serie_ref.max(), serie_act.max()))
+            cortes = np.linspace(minimo, maximo, 25)
+
+            conteo_ref, _ = np.histogram(serie_ref, bins=cortes)
+            conteo_act, _ = np.histogram(serie_act, bins=cortes)
+
+            # Normalización a proporciones para comparar conjuntos de distinto tamaño
+            prop_ref = conteo_ref / max(conteo_ref.sum(), 1)
+            prop_act = conteo_act / max(conteo_act.sum(), 1)
+
+            centros = (cortes[:-1] + cortes[1:]) / 2
+
+            df_dist = pd.DataFrame(
+                {"Referencia": prop_ref, "Producción": prop_act},
+                index=np.round(centros, 2),
+            )
+            df_dist.index.name = variable
+
+            st.area_chart(df_dist, height=320)
+            st.caption(
+                f"Distribución de {variable} en el conjunto de referencia "
+                f"({len(serie_ref)} registros) frente a los datos de producción "
+                f"({len(serie_act)} registros). Los valores se expresan como "
+                "proporción del total para permitir la comparación."
+            )
+    except Exception as error:
+        st.warning(f"No fue posible generar la comparación: {error}")
+
 else:
     st.info("Sin alertas registradas")

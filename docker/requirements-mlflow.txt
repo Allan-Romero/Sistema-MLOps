@@ -1,0 +1,4 @@
+# Dependencias del servidor de tracking de MLflow
+# Versiones alineadas con requirements.txt del proyecto
+mlflow==3.16.1
+psycopg2-binary==2.9.12

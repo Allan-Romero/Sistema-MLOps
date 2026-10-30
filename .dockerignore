@@ -1,0 +1,28 @@
+# Entornos virtuales y cachés locales
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Artefactos y datos pesados (se montan como volúmenes, no van en la imagen)
+mlartifacts/
+mlruns/
+mlflow.db
+mlflow.db*
+models/
+data/
+reports/
+notebooks/
+
+# Git y documentación
+.git/
+.github/
+docs/
+README.md
+
+# Variables de entorno (las entrega docker compose)
+.env
+.env.*
+!.env.example

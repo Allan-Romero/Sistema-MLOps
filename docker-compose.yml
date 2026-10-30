@@ -1,4 +1,10 @@
+# Stack completo de la plataforma MLOps
+# Levantar todo:   docker compose up -d --build
+# Ver logs:        docker compose logs -f
+# Detener:         docker compose down
+
 services:
+  # Base de datos: predictions, model_metrics, model_versions, alerts
   postgres:
     image: postgres:16
     container_name: mlops_postgres
@@ -11,6 +17,116 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Crea las 4 tablas la primera vez que se inicializa el volumen
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - mlops_net
+
+  # Servidor de tracking de MLflow (experimentos y registro de modelos)
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow.Dockerfile
+    image: sistema-mlops/mlflow:latest
+    container_name: mlops_mlflow
+    restart: unless-stopped
+    environment:
+      MLFLOW_BACKEND_STORE_URI: sqlite:////app/mlflow.db
+      MLFLOW_ARTIFACTS_DESTINATION: /app/mlartifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      # Se reutilizan la base de experimentos y los artefactos ya existentes
+      - ./mlflow.db:/app/mlflow.db
+      - ./mlartifacts:/app/mlartifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - mlops_net
+
+  # API de predicciones (/predict, /health, /docs)
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: sistema-mlops/api:latest
+    container_name: mlops_api
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      # Recarga en caliente sobre volúmenes de Windows (eventos por sondeo)
+      WATCHFILES_FORCE_POLLING: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./models:/app/models:ro
+    command:
+      - uvicorn
+      - src.api.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - mlops_net
+
+  # Dashboard de métricas, versiones, predicciones y alertas de drift
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    image: sistema-mlops/dashboard:latest
+    container_name: mlops_dashboard
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      API_URL: http://api:8000
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      STREAMLIT_SERVER_FILE_WATCHER_TYPE: poll
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./dashboard:/app/dashboard
+      - ./src:/app/src
+      - ./data:/app/data:ro
+      - ./reports:/app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mlops_net
 
 volumes:
   postgres_data:
+
+networks:
+  mlops_net:
+    driver: bridge
