@@ -1,3 +1,4 @@
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -6,6 +7,10 @@ from fastapi.testclient import TestClient
 from src.api import main as api_main
 from src.monitoring import prediction_features as features
 
+
+# ============================================================
+# DATOS DE PRUEBA - CLIENTE CHURN
+# ============================================================
 
 DATOS_CLIENTE = {
     "gender": "Female",
@@ -30,6 +35,10 @@ DATOS_CLIENTE = {
 }
 
 
+# ============================================================
+# SIMULACION DE BASE DE DATOS
+# ============================================================
+
 def simular_base_datos(monkeypatch, registros):
     conexion = MagicMock()
 
@@ -48,6 +57,10 @@ def simular_base_datos(monkeypatch, registros):
 
     return conexion
 
+
+# ============================================================
+# TEST 1 - RECUPERAR PREDICCIONES COMPLETAS
+# ============================================================
 
 def test_recuperar_predicciones_completas(monkeypatch):
     conexion = simular_base_datos(
@@ -74,6 +87,10 @@ def test_recuperar_predicciones_completas(monkeypatch):
     conexion.close.assert_called_once()
 
 
+# ============================================================
+# TEST 2 - DETECTAR PREDICCION INCOMPLETA
+# ============================================================
+
 def test_prediccion_incompleta(monkeypatch):
     datos_incompletos = DATOS_CLIENTE.copy()
     datos_incompletos.pop("MonthlyCharges")
@@ -90,6 +107,10 @@ def test_prediccion_incompleta(monkeypatch):
         features.obtener_predicciones_dataframe()
 
 
+# ============================================================
+# TEST 3 - CONSULTA SIN REGISTROS
+# ============================================================
+
 def test_recuperar_sin_registros(monkeypatch):
     simular_base_datos(monkeypatch, [])
 
@@ -98,6 +119,11 @@ def test_recuperar_sin_registros(monkeypatch):
     assert df.empty
     assert len(df.columns) == 19
 
+
+# ============================================================
+# TEST 4 - GUARDAR 19 VARIABLES CON VERSION DINAMICA
+# SPRINT 4 - S4-J1
+# ============================================================
 
 def test_predict_almacena_19_variables(monkeypatch):
     modelo_simulado = MagicMock()
@@ -115,12 +141,23 @@ def test_predict_almacena_19_variables(monkeypatch):
         [0.25, 0.75]
     ]
 
+    # Simular el nuevo comportamiento del cargador:
+    # modelo + version activa consultada en PostgreSQL.
+
+    informacion_modelo = {
+        "modelo": modelo_simulado,
+        "caso_uso": "churn",
+        "version": "v1.0",
+        "algoritmo": "logistic_regression"
+    }
+
     monkeypatch.setattr(
         api_main,
         "obtener_modelo",
-        lambda: modelo_simulado
+        lambda: informacion_modelo
     )
 
+    # Capturar los datos enviados a PostgreSQL.
     datos_guardados = {}
 
     def guardar_prediccion_simulada(**kwargs):
@@ -140,14 +177,28 @@ def test_predict_almacena_19_variables(monkeypatch):
         json=DATOS_CLIENTE
     )
 
+    # Verificar respuesta de la API.
     assert respuesta.status_code == 200
 
-    assert respuesta.json()["prediction_id"] == 999
+    resultado = respuesta.json()
 
+    assert resultado["prediction_id"] == 999
+    assert resultado["prediction"] == 1
+    assert resultado["prediction_label"] == "Yes"
+    assert resultado["churn_probability"] == 0.75
+
+    # Verificar que la API utilice la version activa.
+    assert resultado["model_version"] == "v1.0"
+
+    # Verificar los datos guardados en PostgreSQL.
     assert datos_guardados["caso_uso"] == "churn"
+    assert datos_guardados["prediction"] == 1
+    assert datos_guardados["probability"] == 0.75
 
-    assert datos_guardados["model_version"] == "v1"
+    # Sprint 4: ya no se registra una version fija.
+    assert datos_guardados["model_version"] == "v1.0"
 
+    # Sprint 3: se conservan las 19 variables originales.
     assert len(datos_guardados["input_data"]) == 19
 
     assert datos_guardados["input_data"] == DATOS_CLIENTE

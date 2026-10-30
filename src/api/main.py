@@ -1,26 +1,15 @@
-from pathlib import Path
+
 from typing import Literal
 
-import joblib
 import pandas as pd
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from src.api.model_loader import obtener_modelo_activo
 from src.database.crud import guardar_prediccion
 from src.api.metrics import router as metrics_router
 from src.api.model_version import router as model_version_router
-
-
-# ============================================================
-# CONFIGURACION DEL PROYECTO
-# ============================================================
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-MODEL_FILE = (
-    PROJECT_ROOT / "models" / "churn_model_v1.joblib"
-)
 
 
 # ============================================================
@@ -31,75 +20,57 @@ app = FastAPI(
     title="Sistema-MLOps API",
     description=(
         "API para prediccion de churn, monitoreo "
-        "de metricas y gestion de versiones del modelo."
+        "de metricas y gestion dinamica de modelos."
     ),
-    version="1.0.0"
+    version="1.1.0"
 )
 
 
 # ============================================================
-# CARGA DEL MODELO
+# ESTADO DEL MODELO CARGADO
 # ============================================================
 
-def cargar_modelo():
-    """
-    Carga el modelo oficial de churn version 1.
-    """
-
-    if not MODEL_FILE.exists():
-        raise FileNotFoundError(
-            f"No se encontro el modelo en: {MODEL_FILE}"
-        )
-
-    return joblib.load(MODEL_FILE)
-
+# La API no carga modelos al iniciar.
+# Se conserva el lazy loading del Sprint 2.
 
 modelo = None
+version_cargada = None
 
 
 def obtener_modelo():
     """
-    Carga el modelo la primera vez que se solicita
-    y lo mantiene en memoria para las siguientes llamadas.
+    Consulta PostgreSQL para identificar la version activa.
+
+    El cargador mantiene los artefactos en cache por ruta.
+    Si cambia la version activa, carga el nuevo artefacto.
     """
+    global modelo, version_cargada
 
-    global modelo
+    informacion = obtener_modelo_activo("churn")
 
-    if modelo is None:
-        modelo = cargar_modelo()
+    modelo = informacion["modelo"]
+    version_cargada = informacion["version"]
 
-    return modelo
+    return informacion
 
 
 # ============================================================
-# ESQUEMA DE ENTRADA PARA PREDICCIONES
+# ESQUEMA DE ENTRADA
 # ============================================================
 
 class ChurnInput(BaseModel):
 
-    gender: Literal[
-        "Female",
-        "Male"
-    ]
+    gender: Literal["Female", "Male"]
 
     SeniorCitizen: Literal[0, 1]
 
-    Partner: Literal[
-        "Yes",
-        "No"
-    ]
+    Partner: Literal["Yes", "No"]
 
-    Dependents: Literal[
-        "Yes",
-        "No"
-    ]
+    Dependents: Literal["Yes", "No"]
 
     tenure: int
 
-    PhoneService: Literal[
-        "Yes",
-        "No"
-    ]
+    PhoneService: Literal["Yes", "No"]
 
     MultipleLines: Literal[
         "Yes",
@@ -155,10 +126,7 @@ class ChurnInput(BaseModel):
         "Two year"
     ]
 
-    PaperlessBilling: Literal[
-        "Yes",
-        "No"
-    ]
+    PaperlessBilling: Literal["Yes", "No"]
 
     PaymentMethod: Literal[
         "Electronic check",
@@ -173,7 +141,6 @@ class ChurnInput(BaseModel):
 
 
 # ============================================================
-# ENDPOINT PRINCIPAL
 # GET /
 # ============================================================
 
@@ -182,13 +149,12 @@ def root():
 
     return {
         "message": "Sistema-MLOps API",
-        "model": "churn_model_v1",
+        "model": "churn_model",
         "status": "running"
     }
 
 
 # ============================================================
-# ENDPOINT DE SALUD
 # GET /health
 # ============================================================
 
@@ -198,62 +164,62 @@ def health():
     return {
         "status": "healthy",
         "model": "churn_model",
-        "model_version": "v1",
+        "model_version": version_cargada,
         "model_loaded": modelo is not None
     }
 
 
 # ============================================================
-# ENDPOINT DE PREDICCION
 # POST /predict
 # ============================================================
 
 @app.post("/predict")
 def predict(datos: ChurnInput):
 
-    # Obtener modelo entrenado
-    modelo_activo = obtener_modelo()
+    # Consultar la version activa desde PostgreSQL.
+    informacion = obtener_modelo()
 
-    # Convertir datos recibidos a DataFrame
-    df_input = pd.DataFrame(
-        [datos.model_dump()]
-    )
+    modelo_activo = informacion["modelo"]
+    version_activa = informacion["version"]
 
-    # Aplicar One-Hot Encoding
+    # Convertir la entrada a DataFrame.
+    df_input = pd.DataFrame([
+        datos.model_dump()
+    ])
+
+    # Aplicar One-Hot Encoding.
     df_input = pd.get_dummies(
         df_input,
         dtype=int
     )
 
-    # Obtener columnas utilizadas durante entrenamiento
+    # Alinear las columnas con el modelo entrenado.
     columnas_modelo = modelo_activo.feature_names_in_
 
-    # Alinear variables con el modelo
     df_input = df_input.reindex(
         columns=columnas_modelo,
         fill_value=0
     )
 
-    # Ejecutar prediccion
+    # Generar prediccion.
     prediccion = int(
         modelo_activo.predict(df_input)[0]
     )
 
-    # Obtener probabilidad
+    # Calcular probabilidad.
     probabilidad = float(
         modelo_activo.predict_proba(df_input)[0][1]
     )
 
-    # Guardar prediccion en PostgreSQL
+    # Guardar la prediccion con la version real utilizada.
     prediccion_id = guardar_prediccion(
         caso_uso="churn",
         input_data=datos.model_dump(),
         prediction=prediccion,
         probability=probabilidad,
-        model_version="v1"
+        model_version=version_activa
     )
 
-    # Retornar resultado
     return {
         "prediction": prediccion,
         "prediction_label": (
@@ -263,14 +229,12 @@ def predict(datos: ChurnInput):
             probabilidad,
             4
         ),
-        "model_version": "v1",
+        "model_version": version_activa,
         "prediction_id": prediccion_id
     }
 
 
 # ============================================================
-# SPRINT 3 - J3
-# ENDPOINT DE METRICAS DEL MODELO ACTIVO
 # GET /metrics
 # ============================================================
 
@@ -278,8 +242,6 @@ app.include_router(metrics_router)
 
 
 # ============================================================
-# SPRINT 3 - J4
-# ENDPOINT DE VERSION ACTIVA DEL MODELO
 # GET /model-version
 # ============================================================
 
