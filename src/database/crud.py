@@ -235,3 +235,111 @@ def registrar_etiqueta_real(prediction_id, etiqueta_real):
         raise
     finally:
         conn.close()
+
+
+def obtener_desempeno_por_version(caso_uso="churn"):
+    """
+    Calcula el desempeño real de cada versión del modelo sobre las
+    predicciones cuya etiqueta verdadera ya se conoce.
+
+    Retorna, por versión: tamaño de la muestra, accuracy, precision, recall,
+    f1_score y roc_auc, las mismas métricas que el proyecto registra durante
+    el entrenamiento, de modo que ambos números sean comparables.
+
+    El tamaño de la muestra se informa siempre: una diferencia calculada
+    sobre pocas predicciones no permite concluir nada.
+    """
+    query = """
+        WITH etiquetadas AS (
+            SELECT model_version, prediction, etiqueta_real, probability
+            FROM predictions
+            WHERE caso_uso = %s
+              AND etiqueta_real IS NOT NULL
+        ),
+        matriz AS (
+            SELECT model_version,
+                   COUNT(*) AS muestra,
+                   COUNT(*) FILTER (WHERE prediction = 1 AND etiqueta_real = 1) AS vp,
+                   COUNT(*) FILTER (WHERE prediction = 1 AND etiqueta_real = 0) AS fp,
+                   COUNT(*) FILTER (WHERE prediction = 0 AND etiqueta_real = 1) AS fn,
+                   COUNT(*) FILTER (WHERE prediction = 0 AND etiqueta_real = 0) AS vn
+            FROM etiquetadas
+            GROUP BY model_version
+        ),
+        rangos AS (
+            -- Rango de cada probabilidad dentro de su versión. Ante empates
+            -- corresponde el rango promedio, de ahí el ajuste por el conteo.
+            SELECT model_version,
+                   etiqueta_real,
+                   RANK() OVER (PARTITION BY model_version ORDER BY probability)
+                       + (COUNT(*) OVER (PARTITION BY model_version, probability) - 1) / 2.0
+                       AS rango
+            FROM etiquetadas
+            WHERE probability IS NOT NULL
+        ),
+        auc AS (
+            -- ROC-AUC por el estadístico de Mann-Whitney sobre esos rangos.
+            SELECT model_version,
+                   COUNT(*) FILTER (WHERE etiqueta_real = 1) AS positivos,
+                   COUNT(*) FILTER (WHERE etiqueta_real = 0) AS negativos,
+                   SUM(rango) FILTER (WHERE etiqueta_real = 1) AS suma_positivos
+            FROM rangos
+            GROUP BY model_version
+        )
+        SELECT m.model_version,
+               m.muestra,
+               (m.vp + m.vn)::float / NULLIF(m.muestra, 0) AS accuracy,
+               m.vp::float / NULLIF(m.vp + m.fp, 0) AS precision,
+               m.vp::float / NULLIF(m.vp + m.fn, 0) AS recall,
+               (2.0 * m.vp) / NULLIF(2 * m.vp + m.fp + m.fn, 0) AS f1_score,
+               (a.suma_positivos - a.positivos * (a.positivos + 1) / 2.0)
+                   / NULLIF(a.positivos * a.negativos, 0) AS roc_auc
+        FROM matriz m
+        LEFT JOIN auc a ON a.model_version = m.model_version
+        ORDER BY m.model_version;
+    """
+    return ejecutar_consulta(query, (caso_uso,))
+
+
+def obtener_volumen_por_version(caso_uso="churn"):
+    """
+    Consulta el volumen de tráfico que atendió cada versión del modelo.
+
+    Retorna, por versión: total de predicciones, cuántas tienen etiqueta
+    real, cuántas no, el porcentaje del tráfico total y las fechas de la
+    primera y la última predicción.
+    """
+    query = """
+        SELECT model_version,
+               COUNT(*) AS predicciones,
+               COUNT(etiqueta_real) AS con_etiqueta,
+               COUNT(*) - COUNT(etiqueta_real) AS sin_etiqueta,
+               ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 2) AS porcentaje_trafico,
+               MIN(created_at) AS primera_prediccion,
+               MAX(created_at) AS ultima_prediccion
+        FROM predictions
+        WHERE caso_uso = %s
+        GROUP BY model_version
+        ORDER BY predicciones DESC;
+    """
+    return ejecutar_consulta(query, (caso_uso,))
+
+
+def obtener_historial_despliegues(caso_uso="churn", limite=20):
+    """
+    Consulta la bitácora de despliegues, de la más reciente a la más antigua.
+
+    Incluye el motivo de cada promoción o rollback y la métrica de las dos
+    versiones involucradas, que es lo que permite reconstruir por qué una
+    versión dejó de estar en producción.
+    """
+    query = """
+        SELECT id, caso_uso, version_origen, version_destino, tipo_operacion,
+               motivo, metrica_principal, valor_metrica_origen,
+               valor_metrica_destino, created_at
+        FROM deployments
+        WHERE caso_uso = %s
+        ORDER BY created_at DESC
+        LIMIT %s;
+    """
+    return ejecutar_consulta(query, (caso_uso, limite))
