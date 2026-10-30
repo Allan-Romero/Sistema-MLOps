@@ -191,7 +191,7 @@ El archivo `.env` no debe subirse al repositorio.
 ## Tablas
 
 El esquema `src/database/schema.sql` se monta como script de inicialización
-del contenedor de PostgreSQL, por lo que las cuatro tablas se crean
+del contenedor de PostgreSQL, por lo que las tablas se crean
 automáticamente la primera vez que se inicializa el volumen:
 
 | Tabla | Contenido |
@@ -200,6 +200,8 @@ automáticamente la primera vez que se inicializa el volumen:
 | `model_metrics` | Métricas de evaluación de cada modelo entrenado |
 | `model_versions` | Historial de versiones del modelo con su estado |
 | `alerts` | Alertas generadas por el monitoreo de data drift |
+| `deployments` | Bitácora de promociones y rollbacks de versión en producción |
+| `experiments` | Configuración y resultado de los experimentos A/B entre versiones |
 
 Si el volumen ya existía antes de incorporar el esquema, o si se modifica
 `schema.sql`, las tablas pueden crearse manualmente:
