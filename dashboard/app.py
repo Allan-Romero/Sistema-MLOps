@@ -246,7 +246,9 @@ else:
         )
 
     # ----- Reparto de tráfico: configurado frente a obtenido -----
-    volumen = {fila[0]: fila for fila in obtener_volumen_por_version(caso_uso, desde=inicio)}
+    # Un experimento cerrado no debe arrastrar el tráfico posterior a su fin
+    volumen = {fila[0]: fila
+               for fila in obtener_volumen_por_version(caso_uso, desde=inicio, hasta=fin)}
     predicciones_a = volumen[version_a][1] if version_a in volumen else 0
     predicciones_b = volumen[version_b][1] if version_b in volumen else 0
     total_experimento = predicciones_a + predicciones_b
@@ -267,7 +269,8 @@ else:
     col3.metric("Predicciones en el experimento", total_experimento)
 
     # ----- Desempeño real de cada grupo -----
-    desempeno = {fila[0]: fila for fila in obtener_desempeno_por_version(caso_uso, desde=inicio)}
+    desempeno = {fila[0]: fila
+                 for fila in obtener_desempeno_por_version(caso_uso, desde=inicio, hasta=fin)}
 
     def fila_version(version, rol, predicciones):
         """Arma la fila de la tabla comparativa para una de las versiones."""

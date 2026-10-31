@@ -237,7 +237,7 @@ def registrar_etiqueta_real(prediction_id, etiqueta_real):
         conn.close()
 
 
-def obtener_desempeno_por_version(caso_uso="churn", desde=None):
+def obtener_desempeno_por_version(caso_uso="churn", desde=None, hasta=None):
     """
     Calcula el desempeño real de cada versión del modelo sobre las
     predicciones cuya etiqueta verdadera ya se conoce.
@@ -246,8 +246,9 @@ def obtener_desempeno_por_version(caso_uso="churn", desde=None):
     f1_score y roc_auc, las mismas métricas que el proyecto registra durante
     el entrenamiento, de modo que ambos números sean comparables.
 
-    desde: si se indica, solo considera las predicciones posteriores a esa
-    fecha, que es como se acota el cálculo a un experimento en curso.
+    desde y hasta: si se indican, acotan el cálculo a esa ventana de
+    tiempo, que es como se restringe a las predicciones de un experimento.
+    Un experimento cerrado no debe incluir el tráfico posterior a su fin.
 
     El tamaño de la muestra se informa siempre: una diferencia calculada
     sobre pocas predicciones no permite concluir nada.
@@ -259,6 +260,7 @@ def obtener_desempeno_por_version(caso_uso="churn", desde=None):
             WHERE caso_uso = %s
               AND etiqueta_real IS NOT NULL
               AND created_at >= COALESCE(%s::timestamp, created_at)
+              AND created_at <= COALESCE(%s::timestamp, created_at)
         ),
         matriz AS (
             SELECT model_version,
@@ -302,10 +304,10 @@ def obtener_desempeno_por_version(caso_uso="churn", desde=None):
         LEFT JOIN auc a ON a.model_version = m.model_version
         ORDER BY m.model_version;
     """
-    return ejecutar_consulta(query, (caso_uso, desde))
+    return ejecutar_consulta(query, (caso_uso, desde, hasta))
 
 
-def obtener_volumen_por_version(caso_uso="churn", desde=None):
+def obtener_volumen_por_version(caso_uso="churn", desde=None, hasta=None):
     """
     Consulta el volumen de tráfico que atendió cada versión del modelo.
 
@@ -313,8 +315,8 @@ def obtener_volumen_por_version(caso_uso="churn", desde=None):
     real, cuántas no, el porcentaje del tráfico total y las fechas de la
     primera y la última predicción.
 
-    desde: si se indica, solo cuenta las predicciones posteriores a esa
-    fecha, para acotar el reparto a un experimento en curso.
+    desde y hasta: si se indican, acotan el conteo a esa ventana de
+    tiempo, para que el reparto corresponda al periodo del experimento.
     """
     query = """
         SELECT model_version,
@@ -327,10 +329,11 @@ def obtener_volumen_por_version(caso_uso="churn", desde=None):
         FROM predictions
         WHERE caso_uso = %s
           AND created_at >= COALESCE(%s::timestamp, created_at)
+          AND created_at <= COALESCE(%s::timestamp, created_at)
         GROUP BY model_version
         ORDER BY predicciones DESC;
     """
-    return ejecutar_consulta(query, (caso_uso, desde))
+    return ejecutar_consulta(query, (caso_uso, desde, hasta))
 
 
 def obtener_historial_despliegues(caso_uso="churn", limite=20):
