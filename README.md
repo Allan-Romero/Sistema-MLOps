@@ -133,6 +133,14 @@ que los cambios se recargan sin reconstruir la imagen. Solo es necesario
 reconstruir (`docker compose up -d --build`) al modificar las dependencias de
 `docker/requirements-*.txt`.
 
+Una excepción: Streamlit recarga `dashboard/app.py`, pero conserva en memoria
+los módulos de `src/` que ya importó. Tras cambiar, por ejemplo,
+`src/database/crud.py`, hay que reiniciar el servicio:
+
+```powershell
+docker compose restart dashboard
+```
+
 Los datos persisten fuera de los contenedores: la base de datos en el volumen
 `postgres_data`, y el historial de MLflow en `mlflow.db` y `mlartifacts/`.
 

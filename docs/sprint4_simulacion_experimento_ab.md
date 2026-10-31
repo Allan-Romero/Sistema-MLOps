@@ -62,6 +62,25 @@ experimento incluye predicciones anteriores a la simulación, atendidas por la
 versión activa. Es la misma situación que se dará en producción cuando un
 experimento arranque sobre una versión que ya venía atendiendo tráfico.
 
+## Cierre del experimento y ciclo de despliegue
+
+Para dejar la evidencia de S4-A5 se registró el ciclo completo. Las cifras de
+los dos despliegues también son medidas:
+
+| Operación | Versiones | Métrica | Motivo |
+|---|---|---|---|
+| Promoción | v1 → v1.1 | 0.579 → 0.710 | La candidata superó al control durante el experimento |
+| Rollback | v1.1 → v1 | 0.523 → 0.579 | Degradación medida tras la promoción |
+
+El rollback no se inventó: después de la promoción se generaron 200
+predicciones atendidas por la candidata, aplicando a `TotalCharges` el mismo
+factor de drift que usa `simulate_data.py` para desplazar la distribución. El
+F1-score real de la candidata sobre ese tráfico cae a 0.523, por debajo del
+0.579 del control, que es lo que justifica revertir.
+
+Esta secuencia la ejecutó un script de un solo uso, no versionado: la lógica
+de promover y revertir automáticamente corresponde a S4-J2 y S4-J4.
+
 ## Limpieza
 
 Las predicciones simuladas quedan registradas como cualquier otra. Para
@@ -69,6 +88,7 @@ descartarlas basta con cerrar el experimento y borrar las predicciones de la
 versión candidata:
 
 ```sql
-UPDATE experiments SET estado = 'cancelado', ended_at = NOW() WHERE id = 1;
+DELETE FROM deployments WHERE version_destino = 'v1.1' OR version_origen = 'v1.1';
+DELETE FROM experiments WHERE version_b = 'v1.1';
 DELETE FROM predictions WHERE model_version = 'v1.1';
 ```
