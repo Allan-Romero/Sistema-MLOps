@@ -10,7 +10,8 @@ from src.database.crud import (obtener_metricas, obtener_predicciones, obtener_a
                                obtener_desempeno_por_version, obtener_volumen_por_version,
                                obtener_historial_despliegues)
 import numpy as np
-from src.monitoring.detect_drift import COLUMNAS_NUMERICAS, obtener_distribuciones
+from src.monitoring.detect_drift import obtener_distribuciones
+from src.casos_uso import listar_casos, etiqueta, columnas_monitoreadas
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -21,12 +22,20 @@ st.set_page_config(
 st.title("Dashboard de monitoreo - Plataforma MLOps")
 st.caption("Universidad Manuela Beltrán · Ingeniería de Software")
 
+# El caso de uso seleccionado gobierna todas las secciones del dashboard
+CASO_USO = st.selectbox(
+    "Caso de uso",
+    listar_casos(),
+    format_func=etiqueta,
+    help="Las métricas, predicciones, alertas y experimentos corresponden al caso seleccionado",
+)
+
 st.divider()
 
 # Sección de métricas del modelo (se completa en S1-A14)
 st.subheader("Métricas del modelo")
 
-metricas = obtener_metricas(limite=1)
+metricas = obtener_metricas(CASO_USO, limite=1)
 
 if metricas:
     # La consulta retorna: id, caso_uso, model_version, accuracy, precision,
@@ -49,7 +58,7 @@ else:
 st.divider()
 st.subheader("Comparación de modelos")
 
-comparacion = obtener_comparacion_modelos("churn")
+comparacion = obtener_comparacion_modelos(CASO_USO)
 
 if comparacion:
     columnas = ["Algoritmo", "Versión", "Accuracy", "Precision",
@@ -69,7 +78,7 @@ else:
 st.divider()
 st.subheader("Historial de versiones del modelo")
 
-versiones = obtener_versiones(limite=20)
+versiones = obtener_versiones(CASO_USO, limite=20)
 
 if versiones:
     columnas = ["ID", "Caso de uso", "Versión", "Algoritmo",
@@ -93,7 +102,7 @@ st.divider()
 # Sección de predicciones recientes (se completa en S1-A15)
 st.subheader("Últimas predicciones")
 
-predicciones = obtener_predicciones(limite=10)
+predicciones = obtener_predicciones(CASO_USO, limite=10)
 
 if predicciones:
     columnas = ["ID", "Caso de uso", "Predicción", "Probabilidad",
@@ -107,7 +116,7 @@ else:
 st.divider()
 st.subheader("Alertas de drift")
 
-alertas = obtener_alertas(limite=50)
+alertas = obtener_alertas(CASO_USO, limite=50)
 
 if alertas:
     columnas = ["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
@@ -155,10 +164,11 @@ if alertas:
     # ----- Comparación de distribuciones -----
     st.markdown("##### Comparación de distribuciones")
 
+    monitoreadas = columnas_monitoreadas(CASO_USO)
     variables_con_alerta = df_alertas["Variable afectada"].unique().tolist()
-    opciones = [v for v in COLUMNAS_NUMERICAS if v in variables_con_alerta]
+    opciones = [v for v in monitoreadas if v in variables_con_alerta]
     if not opciones:
-        opciones = COLUMNAS_NUMERICAS
+        opciones = monitoreadas
 
     variable = st.selectbox(
         "Variable a analizar",
@@ -167,7 +177,7 @@ if alertas:
     )
 
     try:
-        distribuciones = obtener_distribuciones(variable)
+        distribuciones = obtener_distribuciones(variable, CASO_USO)
         serie_ref = distribuciones["referencia"]
         serie_act = distribuciones["actual"]
 
@@ -215,8 +225,6 @@ st.subheader("Experimento A/B")
 # Muestra mínima por grupo para considerar concluyente una diferencia.
 # Se mantiene el mismo umbral que usa el monitoreo de drift.
 MUESTRA_MINIMA = 30
-
-CASO_USO = "churn"
 
 experimento = obtener_experimento_activo(CASO_USO)
 historico = obtener_ultimo_experimento(CASO_USO) if experimento is None else None

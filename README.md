@@ -464,11 +464,13 @@ de entrenamiento y los datos observados en producción, utilizando
 
 ## Variables monitoreadas
 
-El análisis se centra en las variables numéricas del dataset:
+Las variables que se vigilan dependen del caso de uso y están declaradas en
+`src/casos_uso.py`, junto con el conjunto de referencia y la ruta del reporte:
 
-- `tenure`
-- `MonthlyCharges`
-- `TotalCharges`
+| Caso de uso | Variables numéricas monitoreadas |
+|---|---|
+| `churn` | `tenure`, `MonthlyCharges`, `TotalCharges` |
+| `fraude` | `Time`, `Amount` |
 
 ## Umbrales de decisión
 
@@ -512,7 +514,8 @@ salvo que se defina otra dirección en la variable de entorno `API_URL`.
 Con predicciones registradas en la base:
 
 ```powershell
-python -m src.monitoring.detect_drift
+python -m src.monitoring.detect_drift            # churn, por defecto
+python -m src.monitoring.detect_drift fraude     # otro caso de uso
 ```
 
 El módulo compara el conjunto de referencia contra los datos de producción,
@@ -521,7 +524,7 @@ tabla `alerts` por cada variable con drift detectado.
 
 Adicionalmente genera un reporte visual en:
 
-`reports/drift_report.html`
+`reports/drift_report_<caso_uso>.html`, por ejemplo `reports/drift_report_churn.html`
 
 > **Nota:** la carpeta `reports/` contiene artefactos generados y no se
 > versiona en el repositorio.

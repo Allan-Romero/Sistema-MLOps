@@ -12,21 +12,16 @@ Umbrales adoptados (escala estándar del PSI):
     PSI >= 0.25  → cambio significativo
 """
 
-from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 from evidently import DataDefinition, Dataset, Report
 from evidently.presets import DataDriftPreset
+
+from src.casos_uso import (CASO_USO_POR_DEFECTO, columnas_monitoreadas,
+                           ruta_referencia, ruta_reporte_drift)
 from src.database.crud import obtener_datos_entrada, guardar_alerta
-
-from src.database.crud import obtener_datos_entrada
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-RUTA_REFERENCIA = PROJECT_ROOT / "data" / "raw" / "churn.csv"
-RUTA_REPORTE = PROJECT_ROOT / "reports" / "drift_report.html"
-
-COLUMNAS_NUMERICAS = ["tenure", "MonthlyCharges", "TotalCharges"]
 
 UMBRAL_MODERADO = 0.10
 UMBRAL_SIGNIFICATIVO = 0.25
@@ -34,32 +29,46 @@ UMBRAL_SIGNIFICATIVO = 0.25
 MINIMO_REGISTROS = 30
 
 
-def cargar_referencia():
+def cargar_referencia(caso_uso=CASO_USO_POR_DEFECTO):
     """Carga el conjunto de referencia y lo deja listo para el análisis."""
-    df = pd.read_csv(RUTA_REFERENCIA)
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df = df.dropna(subset=COLUMNAS_NUMERICAS)
-    return df[COLUMNAS_NUMERICAS]
+    columnas = columnas_monitoreadas(caso_uso)
+    ruta = ruta_referencia(caso_uso)
+
+    if not ruta.exists():
+        raise FileNotFoundError(
+            f"No existe el conjunto de referencia del caso de uso "
+            f"{caso_uso}: {ruta}"
+        )
+
+    df = pd.read_csv(ruta)
+
+    # Algunas columnas llegan como texto: TotalCharges trae espacios en
+    # blanco para los clientes con tenure cero.
+    for columna in columnas:
+        df[columna] = pd.to_numeric(df[columna], errors="coerce")
+
+    return df.dropna(subset=columnas)[columnas]
 
 
-def cargar_produccion(caso_uso="churn", limite=1000):
+def cargar_produccion(caso_uso=CASO_USO_POR_DEFECTO, limite=1000):
     """Carga los datos de entrada de las predicciones registradas en la base."""
+    columnas = columnas_monitoreadas(caso_uso)
     registros = obtener_datos_entrada(caso_uso=caso_uso, limite=limite)
 
     if not registros:
-        return pd.DataFrame(columns=COLUMNAS_NUMERICAS)
+        return pd.DataFrame(columns=columnas)
 
     df = pd.DataFrame(registros)
-    faltantes = [c for c in COLUMNAS_NUMERICAS if c not in df.columns]
+    faltantes = [c for c in columnas if c not in df.columns]
     if faltantes:
         raise ValueError(
             f"Los datos de producción no contienen las columnas: {faltantes}"
         )
 
-    for columna in COLUMNAS_NUMERICAS:
+    for columna in columnas:
         df[columna] = pd.to_numeric(df[columna], errors="coerce")
 
-    return df[COLUMNAS_NUMERICAS].dropna()
+    return df[columnas].dropna()
 
 
 def calcular_psi(referencia, actual, bins=10):
@@ -103,9 +112,11 @@ def clasificar_nivel(psi):
     return "bajo"
 
 
-def generar_reporte_html(referencia, actual, ruta_salida=RUTA_REPORTE):
+def generar_reporte_html(referencia, actual, caso_uso=CASO_USO_POR_DEFECTO,
+                         ruta_salida=None):
     """Genera el reporte visual de Evidently y retorna su ruta."""
-    esquema = DataDefinition(numerical_columns=COLUMNAS_NUMERICAS)
+    ruta_salida = ruta_salida or ruta_reporte_drift(caso_uso)
+    esquema = DataDefinition(numerical_columns=columnas_monitoreadas(caso_uso))
 
     ds_referencia = Dataset.from_pandas(referencia, data_definition=esquema)
     ds_actual = Dataset.from_pandas(actual, data_definition=esquema)
@@ -117,7 +128,7 @@ def generar_reporte_html(referencia, actual, ruta_salida=RUTA_REPORTE):
     return ruta_salida
 
 
-def detectar_drift(referencia=None, actual=None, caso_uso="churn",
+def detectar_drift(referencia=None, actual=None, caso_uso=CASO_USO_POR_DEFECTO,
                    generar_reporte=True):
     """
     Ejecuta el análisis de drift y retorna el resultado estructurado.
@@ -127,7 +138,7 @@ def detectar_drift(referencia=None, actual=None, caso_uso="churn",
     la base de datos.
     """
     if referencia is None:
-        referencia = cargar_referencia()
+        referencia = cargar_referencia(caso_uso)
     if actual is None:
         actual = cargar_produccion(caso_uso=caso_uso)
 
@@ -144,7 +155,7 @@ def detectar_drift(referencia=None, actual=None, caso_uso="churn",
         }
 
     variables = []
-    for columna in COLUMNAS_NUMERICAS:
+    for columna in columnas_monitoreadas(caso_uso):
         psi = calcular_psi(referencia[columna], actual[columna])
         nivel = clasificar_nivel(psi)
         variables.append({
@@ -156,7 +167,7 @@ def detectar_drift(referencia=None, actual=None, caso_uso="churn",
 
     ruta_reporte = None
     if generar_reporte:
-        ruta_reporte = str(generar_reporte_html(referencia, actual))
+        ruta_reporte = str(generar_reporte_html(referencia, actual, caso_uso))
 
     return {
         "caso_uso": caso_uso,
@@ -198,15 +209,15 @@ def registrar_alertas(resultado):
 
     return ids
 
-def obtener_distribuciones(variable, caso_uso="churn"):
+def obtener_distribuciones(variable, caso_uso=CASO_USO_POR_DEFECTO):
     """
     Retorna los valores de una variable en el conjunto de referencia y en
     los datos de producción, para su comparación visual.
     """
-    referencia = cargar_referencia()
+    referencia = cargar_referencia(caso_uso)
     actual = cargar_produccion(caso_uso=caso_uso)
 
-    if variable not in COLUMNAS_NUMERICAS:
+    if variable not in columnas_monitoreadas(caso_uso):
         raise ValueError(f"La variable {variable} no es analizada por el sistema.")
 
     return {
@@ -214,11 +225,17 @@ def obtener_distribuciones(variable, caso_uso="churn"):
         "actual": actual[variable].dropna() if not actual.empty else actual,
     }
 
-def main():
+def main(caso_uso=CASO_USO_POR_DEFECTO):
     """Ejecuta la detección de drift y muestra el resultado en consola."""
     print("========== DETECCIÓN DE DATA DRIFT ==========\n")
 
-    resultado = detectar_drift()
+    print(f"Caso de uso: {caso_uso}")
+
+    try:
+        resultado = detectar_drift(caso_uso=caso_uso)
+    except (FileNotFoundError, ValueError) as error:
+        print(f"No fue posible ejecutar el análisis: {error}")
+        return
 
     if not resultado["analisis_realizado"]:
         print(f"Análisis no realizado: {resultado['motivo']}")
@@ -246,4 +263,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1] if len(sys.argv) > 1 else CASO_USO_POR_DEFECTO)

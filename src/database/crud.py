@@ -1,5 +1,6 @@
-from src.database.connection import get_connection
 import json
+
+from src.casos_uso import CASO_USO_POR_DEFECTO
 from src.database.connection import get_connection
 
 def ejecutar_insercion(query, params):
@@ -67,45 +68,48 @@ def ejecutar_consulta(query, params=None):
         conn.close()
 
 
-def obtener_predicciones(limite=10):
+def obtener_predicciones(caso_uso=CASO_USO_POR_DEFECTO, limite=10):
     """
-    Consulta las últimas predicciones registradas en la base de datos.
+    Consulta las últimas predicciones registradas para un caso de uso.
     """
     query = """
         SELECT id, caso_uso, prediction, probability, model_version, created_at
         FROM predictions
+        WHERE caso_uso = %s
         ORDER BY created_at DESC
         LIMIT %s;
     """
-    return ejecutar_consulta(query, (limite,))
+    return ejecutar_consulta(query, (caso_uso, limite))
 
 
-def obtener_metricas(limite=10):
+def obtener_metricas(caso_uso=CASO_USO_POR_DEFECTO, limite=10):
     """
-    Consulta las últimas métricas registradas del modelo.
+    Consulta las últimas métricas registradas del modelo de un caso de uso.
     """
     query = """
         SELECT id, caso_uso, model_version, algoritmo, accuracy, precision,
                recall, f1_score, roc_auc, created_at
         FROM model_metrics
+        WHERE caso_uso = %s
         ORDER BY created_at DESC
         LIMIT %s;
     """
-    return ejecutar_consulta(query, (limite,))
+    return ejecutar_consulta(query, (caso_uso, limite))
 
 
-def obtener_alertas(limite=10):
+def obtener_alertas(caso_uso=CASO_USO_POR_DEFECTO, limite=10):
     """
-    Consulta las últimas alertas de drift registradas.
+    Consulta las últimas alertas de drift registradas para un caso de uso.
     """
     query = """
         SELECT id, caso_uso, variable_afectada, nivel_drift, descripcion,
                revisada, created_at
         FROM alerts
+        WHERE caso_uso = %s
         ORDER BY created_at DESC
         LIMIT %s;
     """
-    return ejecutar_consulta(query, (limite,))
+    return ejecutar_consulta(query, (caso_uso, limite))
 
 def guardar_version_modelo(caso_uso, version, algoritmo=None, metrica_principal=None,
                            valor_metrica=None, estado="historica"):
@@ -149,18 +153,20 @@ def guardar_alerta(caso_uso, variable_afectada, nivel_drift,
     return ejecutar_insercion(query, params)
 
 
-def obtener_versiones(limite=20):
+def obtener_versiones(caso_uso=CASO_USO_POR_DEFECTO, limite=20):
     """
-    Consulta el historial de versiones de modelos, de la más reciente a la más antigua.
+    Consulta el historial de versiones de un caso de uso, de la más reciente
+    a la más antigua.
     """
     query = """
         SELECT id, caso_uso, version, algoritmo, metrica_principal,
                valor_metrica, estado, created_at
         FROM model_versions
+        WHERE caso_uso = %s
         ORDER BY created_at DESC
         LIMIT %s;
     """
-    return ejecutar_consulta(query, (limite,))
+    return ejecutar_consulta(query, (caso_uso, limite))
 
 
 def obtener_version_activa(caso_uso):
@@ -190,7 +196,7 @@ def obtener_comparacion_modelos(caso_uso):
     """
     return ejecutar_consulta(query, (caso_uso,))
 
-def obtener_datos_entrada(caso_uso="churn", limite=1000):
+def obtener_datos_entrada(caso_uso=CASO_USO_POR_DEFECTO, limite=1000):
     """
     Recupera los datos de entrada de las predicciones registradas,
     para el análisis de drift.
@@ -237,7 +243,7 @@ def registrar_etiqueta_real(prediction_id, etiqueta_real):
         conn.close()
 
 
-def obtener_desempeno_por_version(caso_uso="churn", desde=None, hasta=None):
+def obtener_desempeno_por_version(caso_uso=CASO_USO_POR_DEFECTO, desde=None, hasta=None):
     """
     Calcula el desempeño real de cada versión del modelo sobre las
     predicciones cuya etiqueta verdadera ya se conoce.
@@ -307,7 +313,7 @@ def obtener_desempeno_por_version(caso_uso="churn", desde=None, hasta=None):
     return ejecutar_consulta(query, (caso_uso, desde, hasta))
 
 
-def obtener_volumen_por_version(caso_uso="churn", desde=None, hasta=None):
+def obtener_volumen_por_version(caso_uso=CASO_USO_POR_DEFECTO, desde=None, hasta=None):
     """
     Consulta el volumen de tráfico que atendió cada versión del modelo.
 
@@ -336,7 +342,7 @@ def obtener_volumen_por_version(caso_uso="churn", desde=None, hasta=None):
     return ejecutar_consulta(query, (caso_uso, desde, hasta))
 
 
-def obtener_historial_despliegues(caso_uso="churn", limite=20):
+def obtener_historial_despliegues(caso_uso=CASO_USO_POR_DEFECTO, limite=20):
     """
     Consulta la bitácora de despliegues, de la más reciente a la más antigua.
 
@@ -356,7 +362,7 @@ def obtener_historial_despliegues(caso_uso="churn", limite=20):
     return ejecutar_consulta(query, (caso_uso, limite))
 
 
-def obtener_experimento_activo(caso_uso="churn"):
+def obtener_experimento_activo(caso_uso=CASO_USO_POR_DEFECTO):
     """
     Consulta el experimento A/B vigente para un caso de uso.
 
@@ -374,7 +380,7 @@ def obtener_experimento_activo(caso_uso="churn"):
     return filas[0] if filas else None
 
 
-def obtener_ultimo_experimento(caso_uso="churn"):
+def obtener_ultimo_experimento(caso_uso=CASO_USO_POR_DEFECTO):
     """
     Consulta el experimento A/B más reciente, esté activo o cerrado.
 
