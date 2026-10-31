@@ -4,9 +4,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import streamlit as st
-from src.database.crud import obtener_metricas, obtener_predicciones, obtener_alertas, obtener_comparacion_modelos, obtener_versiones
+from src.database.crud import (obtener_metricas, obtener_predicciones, obtener_alertas,
+                               obtener_comparacion_modelos, obtener_versiones,
+                               obtener_experimento_activo, obtener_ultimo_experimento,
+                               obtener_desempeno_por_version, obtener_volumen_por_version,
+                               obtener_historial_despliegues)
 import numpy as np
-from src.monitoring.detect_drift import COLUMNAS_NUMERICAS, obtener_distribuciones
+from src.monitoring.detect_drift import obtener_distribuciones
+from src.casos_uso import listar_casos, etiqueta, columnas_monitoreadas
 
 st.set_page_config(
     page_title="Plataforma MLOps - Dashboard",
@@ -17,12 +22,20 @@ st.set_page_config(
 st.title("Dashboard de monitoreo - Plataforma MLOps")
 st.caption("Universidad Manuela Beltrán · Ingeniería de Software")
 
+# El caso de uso seleccionado gobierna todas las secciones del dashboard
+CASO_USO = st.selectbox(
+    "Caso de uso",
+    listar_casos(),
+    format_func=etiqueta,
+    help="Las métricas, predicciones, alertas y experimentos corresponden al caso seleccionado",
+)
+
 st.divider()
 
 # Sección de métricas del modelo (se completa en S1-A14)
 st.subheader("Métricas del modelo")
 
-metricas = obtener_metricas(limite=1)
+metricas = obtener_metricas(CASO_USO, limite=1)
 
 if metricas:
     # La consulta retorna: id, caso_uso, model_version, accuracy, precision,
@@ -45,7 +58,7 @@ else:
 st.divider()
 st.subheader("Comparación de modelos")
 
-comparacion = obtener_comparacion_modelos("churn")
+comparacion = obtener_comparacion_modelos(CASO_USO)
 
 if comparacion:
     columnas = ["Algoritmo", "Versión", "Accuracy", "Precision",
@@ -65,7 +78,7 @@ else:
 st.divider()
 st.subheader("Historial de versiones del modelo")
 
-versiones = obtener_versiones(limite=20)
+versiones = obtener_versiones(CASO_USO, limite=20)
 
 if versiones:
     columnas = ["ID", "Caso de uso", "Versión", "Algoritmo",
@@ -89,7 +102,7 @@ st.divider()
 # Sección de predicciones recientes (se completa en S1-A15)
 st.subheader("Últimas predicciones")
 
-predicciones = obtener_predicciones(limite=10)
+predicciones = obtener_predicciones(CASO_USO, limite=10)
 
 if predicciones:
     columnas = ["ID", "Caso de uso", "Predicción", "Probabilidad",
@@ -103,7 +116,7 @@ else:
 st.divider()
 st.subheader("Alertas de drift")
 
-alertas = obtener_alertas(limite=50)
+alertas = obtener_alertas(CASO_USO, limite=50)
 
 if alertas:
     columnas = ["ID", "Caso de uso", "Variable afectada", "Nivel de drift",
@@ -151,10 +164,11 @@ if alertas:
     # ----- Comparación de distribuciones -----
     st.markdown("##### Comparación de distribuciones")
 
+    monitoreadas = columnas_monitoreadas(CASO_USO)
     variables_con_alerta = df_alertas["Variable afectada"].unique().tolist()
-    opciones = [v for v in COLUMNAS_NUMERICAS if v in variables_con_alerta]
+    opciones = [v for v in monitoreadas if v in variables_con_alerta]
     if not opciones:
-        opciones = COLUMNAS_NUMERICAS
+        opciones = monitoreadas
 
     variable = st.selectbox(
         "Variable a analizar",
@@ -163,7 +177,7 @@ if alertas:
     )
 
     try:
-        distribuciones = obtener_distribuciones(variable)
+        distribuciones = obtener_distribuciones(variable, CASO_USO)
         serie_ref = distribuciones["referencia"]
         serie_act = distribuciones["actual"]
 
@@ -205,3 +219,208 @@ if alertas:
 
 else:
     st.info("Sin alertas registradas")
+st.divider()
+st.subheader("Experimento A/B")
+
+# Muestra mínima por grupo para considerar concluyente una diferencia.
+# Se mantiene el mismo umbral que usa el monitoreo de drift.
+MUESTRA_MINIMA = 30
+
+experimento = obtener_experimento_activo(CASO_USO)
+historico = obtener_ultimo_experimento(CASO_USO) if experimento is None else None
+datos = experimento or historico
+
+if datos is None:
+    st.info(
+        "No hay experimentos A/B registrados para el caso de uso "
+        f"{CASO_USO}. La sección se activa cuando se configure el primero "
+        "en la tabla experiments."
+    )
+else:
+    (_, caso_uso, version_a, version_b, porcentaje_b,
+     estado, ganadora, inicio, fin) = datos
+
+    if experimento is not None:
+        st.caption(
+            f"Experimento en curso · control {version_a} frente a candidata "
+            f"{version_b} · inicio {inicio:%Y-%m-%d %H:%M}"
+        )
+    else:
+        cierre = f"{fin:%Y-%m-%d %H:%M}" if fin else "sin fecha de cierre"
+        st.info(
+            f"No hay experimento activo. El último ({estado}) comparó "
+            f"{version_a} con {version_b} y cerró el {cierre}. "
+            f"Versión ganadora: {ganadora or 'sin definir'}."
+        )
+
+    # ----- Reparto de tráfico: configurado frente a obtenido -----
+    # Un experimento cerrado no debe arrastrar el tráfico posterior a su fin
+    volumen = {fila[0]: fila
+               for fila in obtener_volumen_por_version(caso_uso, desde=inicio, hasta=fin)}
+    predicciones_a = volumen[version_a][1] if version_a in volumen else 0
+    predicciones_b = volumen[version_b][1] if version_b in volumen else 0
+    total_experimento = predicciones_a + predicciones_b
+
+    if total_experimento:
+        real_b = 100 * predicciones_b / total_experimento
+    else:
+        real_b = 0.0
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Tráfico configurado a la candidata", f"{porcentaje_b} %")
+    col2.metric(
+        "Tráfico obtenido por la candidata",
+        f"{real_b:.1f} %",
+        delta=f"{real_b - float(porcentaje_b):+.1f} pp",
+        delta_color="off",
+    )
+    col3.metric("Predicciones en el experimento", total_experimento)
+
+    # ----- Desempeño real de cada grupo -----
+    desempeno = {fila[0]: fila
+                 for fila in obtener_desempeno_por_version(caso_uso, desde=inicio, hasta=fin)}
+
+    def fila_version(version, rol, predicciones):
+        """Arma la fila de la tabla comparativa para una de las versiones."""
+        medidas = desempeno.get(version)
+        if medidas is None:
+            return {
+                "Versión": version, "Rol": rol, "Predicciones": predicciones,
+                "Muestra etiquetada": 0, "Accuracy": None, "Precision": None,
+                "Recall": None, "F1-score": None, "ROC-AUC": None,
+            }
+        _, muestra, accuracy, precision, recall, f1, roc_auc = medidas
+        return {
+            "Versión": version,
+            "Rol": rol,
+            "Predicciones": predicciones,
+            "Muestra etiquetada": muestra,
+            "Accuracy": float(accuracy) if accuracy is not None else None,
+            "Precision": float(precision) if precision is not None else None,
+            "Recall": float(recall) if recall is not None else None,
+            "F1-score": float(f1) if f1 is not None else None,
+            "ROC-AUC": float(roc_auc) if roc_auc is not None else None,
+        }
+
+    comparacion = [
+        fila_version(version_a, "Control", predicciones_a),
+        fila_version(version_b, "Candidata", predicciones_b),
+    ]
+    df_experimento = pd.DataFrame(comparacion)
+
+    st.dataframe(
+        df_experimento,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            columna: st.column_config.NumberColumn(format="%.3f")
+            for columna in ["Accuracy", "Precision", "Recall", "F1-score", "ROC-AUC"]
+        },
+    )
+
+    # ----- Qué versión lleva ventaja -----
+    muestra_a = df_experimento.loc[0, "Muestra etiquetada"]
+    muestra_b = df_experimento.loc[1, "Muestra etiquetada"]
+    f1_a = df_experimento.loc[0, "F1-score"]
+    f1_b = df_experimento.loc[1, "F1-score"]
+
+    if muestra_a < MUESTRA_MINIMA or muestra_b < MUESTRA_MINIMA:
+        st.warning(
+            f"🟠 Muestra insuficiente para concluir: {muestra_a} predicciones "
+            f"etiquetadas en {version_a} y {muestra_b} en {version_b}. "
+            f"Se requieren al menos {MUESTRA_MINIMA} por grupo, porque una "
+            "diferencia calculada sobre pocos casos no es concluyente."
+        )
+    else:
+        diferencia = f1_b - f1_a
+        if diferencia > 0:
+            st.success(
+                f"🟢 La candidata {version_b} lleva ventaja: F1-score "
+                f"{f1_b:.3f} frente a {f1_a:.3f} del control "
+                f"({diferencia:+.3f})."
+            )
+        elif diferencia < 0:
+            st.error(
+                f"🔴 La candidata {version_b} va por debajo del control: "
+                f"F1-score {f1_b:.3f} frente a {f1_a:.3f} ({diferencia:+.3f}). "
+                "Se recomienda evaluar el rollback."
+            )
+        else:
+            st.info(
+                f"Ambas versiones empatan en F1-score ({f1_a:.3f}). "
+                "Conviene prolongar el experimento."
+            )
+
+        st.bar_chart(
+            df_experimento.set_index("Versión")["F1-score"],
+            height=240,
+        )
+        st.caption(
+            "F1-score real de cada versión sobre las predicciones del "
+            "experimento con etiqueta conocida. Es la métrica de decisión "
+            "del proyecto."
+        )
+
+st.divider()
+st.subheader("Historial de despliegues")
+
+despliegues = obtener_historial_despliegues(CASO_USO, limite=50)
+
+if not despliegues:
+    st.info(
+        "Sin despliegues registrados. La bitácora se alimenta cuando se "
+        "promueve una versión a producción o se revierte a la anterior."
+    )
+else:
+    columnas = ["ID", "Caso de uso", "Versión de origen", "Versión de destino",
+                "Operación", "Motivo", "Métrica", "Valor en origen",
+                "Valor en destino", "Fecha"]
+    df_despliegues = pd.DataFrame(despliegues, columns=columnas)
+
+    promociones = int((df_despliegues["Operación"] == "promocion").sum())
+    rollbacks = int((df_despliegues["Operación"] == "rollback").sum())
+    ultimo = df_despliegues.iloc[0]
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Promociones", promociones)
+    col2.metric("Rollbacks", rollbacks)
+    col3.metric("Versión en producción", ultimo["Versión de destino"])
+
+    # La última operación se destaca: es la que explica qué está sirviendo hoy
+    if ultimo["Operación"] == "rollback":
+        st.error(
+            f"🔴 La última operación fue un rollback: se revirtió de "
+            f"{ultimo['Versión de origen']} a {ultimo['Versión de destino']} "
+            f"el {ultimo['Fecha']:%Y-%m-%d %H:%M}. Motivo: {ultimo['Motivo']}"
+        )
+    else:
+        origen = ultimo["Versión de origen"] or "sin versión previa"
+        st.success(
+            f"🟢 La última operación fue una promoción: {origen} → "
+            f"{ultimo['Versión de destino']} el "
+            f"{ultimo['Fecha']:%Y-%m-%d %H:%M}. Motivo: {ultimo['Motivo']}"
+        )
+
+    # Mismo criterio visual que las alertas de drift y la sección A/B
+    iconos = {"promocion": "🟢 Promoción", "rollback": "🔴 Rollback"}
+    df_vista = df_despliegues.copy()
+    df_vista["Operación"] = df_vista["Operación"].map(
+        lambda operacion: iconos.get(operacion, operacion)
+    )
+    df_vista["Versión de origen"] = df_vista["Versión de origen"].fillna("—")
+
+    st.dataframe(
+        df_vista[["Fecha", "Operación", "Versión de origen",
+                  "Versión de destino", "Métrica", "Valor en origen",
+                  "Valor en destino", "Motivo"]],
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Valor en origen": st.column_config.NumberColumn(format="%.3f"),
+            "Valor en destino": st.column_config.NumberColumn(format="%.3f"),
+        },
+    )
+    st.caption(
+        f"Mostrando {len(df_vista)} operaciones, de la más reciente a la más "
+        "antigua, según lo registrado en PostgreSQL."
+    )
