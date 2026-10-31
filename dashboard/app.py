@@ -7,7 +7,8 @@ import streamlit as st
 from src.database.crud import (obtener_metricas, obtener_predicciones, obtener_alertas,
                                obtener_comparacion_modelos, obtener_versiones,
                                obtener_experimento_activo, obtener_ultimo_experimento,
-                               obtener_desempeno_por_version, obtener_volumen_por_version)
+                               obtener_desempeno_por_version, obtener_volumen_por_version,
+                               obtener_historial_despliegues)
 import numpy as np
 from src.monitoring.detect_drift import COLUMNAS_NUMERICAS, obtener_distribuciones
 
@@ -348,3 +349,67 @@ else:
             "experimento con etiqueta conocida. Es la métrica de decisión "
             "del proyecto."
         )
+
+st.divider()
+st.subheader("Historial de despliegues")
+
+despliegues = obtener_historial_despliegues(CASO_USO, limite=50)
+
+if not despliegues:
+    st.info(
+        "Sin despliegues registrados. La bitácora se alimenta cuando se "
+        "promueve una versión a producción o se revierte a la anterior."
+    )
+else:
+    columnas = ["ID", "Caso de uso", "Versión de origen", "Versión de destino",
+                "Operación", "Motivo", "Métrica", "Valor en origen",
+                "Valor en destino", "Fecha"]
+    df_despliegues = pd.DataFrame(despliegues, columns=columnas)
+
+    promociones = int((df_despliegues["Operación"] == "promocion").sum())
+    rollbacks = int((df_despliegues["Operación"] == "rollback").sum())
+    ultimo = df_despliegues.iloc[0]
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Promociones", promociones)
+    col2.metric("Rollbacks", rollbacks)
+    col3.metric("Versión en producción", ultimo["Versión de destino"])
+
+    # La última operación se destaca: es la que explica qué está sirviendo hoy
+    if ultimo["Operación"] == "rollback":
+        st.error(
+            f"🔴 La última operación fue un rollback: se revirtió de "
+            f"{ultimo['Versión de origen']} a {ultimo['Versión de destino']} "
+            f"el {ultimo['Fecha']:%Y-%m-%d %H:%M}. Motivo: {ultimo['Motivo']}"
+        )
+    else:
+        origen = ultimo["Versión de origen"] or "sin versión previa"
+        st.success(
+            f"🟢 La última operación fue una promoción: {origen} → "
+            f"{ultimo['Versión de destino']} el "
+            f"{ultimo['Fecha']:%Y-%m-%d %H:%M}. Motivo: {ultimo['Motivo']}"
+        )
+
+    # Mismo criterio visual que las alertas de drift y la sección A/B
+    iconos = {"promocion": "🟢 Promoción", "rollback": "🔴 Rollback"}
+    df_vista = df_despliegues.copy()
+    df_vista["Operación"] = df_vista["Operación"].map(
+        lambda operacion: iconos.get(operacion, operacion)
+    )
+    df_vista["Versión de origen"] = df_vista["Versión de origen"].fillna("—")
+
+    st.dataframe(
+        df_vista[["Fecha", "Operación", "Versión de origen",
+                  "Versión de destino", "Métrica", "Valor en origen",
+                  "Valor en destino", "Motivo"]],
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Valor en origen": st.column_config.NumberColumn(format="%.3f"),
+            "Valor en destino": st.column_config.NumberColumn(format="%.3f"),
+        },
+    )
+    st.caption(
+        f"Mostrando {len(df_vista)} operaciones, de la más reciente a la más "
+        "antigua, según lo registrado en PostgreSQL."
+    )
