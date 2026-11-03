@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from src.api.ab_models import obtener_modelo_ab
 from src.api.ab_routing import obtener_experimento_activo, seleccionar_version_ab
 from src.api.metrics import router as metrics_router
+from src.api.fraud import router as fraud_router
 from src.api.model_loader import obtener_modelo_activo
 from src.api.model_version import router as model_version_router
 from src.database.crud import guardar_prediccion
@@ -149,3 +150,4 @@ def predict(datos: ChurnInput):
 
 app.include_router(metrics_router)
 app.include_router(model_version_router)
+app.include_router(fraud_router)
