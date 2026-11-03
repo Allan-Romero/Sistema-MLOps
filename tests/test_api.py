@@ -1,18 +1,11 @@
-from pathlib import Path
 
-import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from src.api import main as api_main
 
 
-RUTA_MODELO = (
-    Path(__file__).resolve().parents[1] / "models" / "churn_model_v1.joblib"
-)
-
-client = TestClient(
-    api_main.app
-)
+client = TestClient(api_main.app)
 
 
 DATOS_CLIENTE = {
@@ -34,131 +27,157 @@ DATOS_CLIENTE = {
     "PaperlessBilling": "Yes",
     "PaymentMethod": "Electronic check",
     "MonthlyCharges": 29.85,
-    "TotalCharges": 29.85
+    "TotalCharges": 29.85,
 }
 
 
+class ModeloSimulado:
+    """Modelo de prueba: no necesita archivos joblib."""
+
+    feature_names_in_ = [
+        "tenure",
+        "MonthlyCharges",
+        "TotalCharges",
+        "gender_Female",
+    ]
+
+    def predict(self, datos):
+        return [1]
+
+    def predict_proba(self, datos):
+        return [[0.38, 0.62]]
+
+
 def test_endpoint_root():
-    response = client.get(
-        "/"
+    respuesta = client.get("/")
+
+    assert respuesta.status_code == 200
+
+    datos = respuesta.json()
+
+    assert datos["message"] == "Sistema-MLOps API"
+    assert datos["model"] == "churn_model"
+    assert datos["status"] == "running"
+
+
+def test_endpoint_health_sin_modelo(monkeypatch):
+    monkeypatch.setattr(api_main, "modelo", None)
+    monkeypatch.setattr(api_main, "version_cargada", None)
+
+    respuesta = client.get("/health")
+
+    assert respuesta.status_code == 200
+
+    datos = respuesta.json()
+
+    assert datos["status"] == "healthy"
+    assert datos["model_loaded"] is False
+    assert datos["model_version"] is None
+
+
+def test_endpoint_health_con_modelo(monkeypatch):
+    monkeypatch.setattr(
+        api_main, "modelo", ModeloSimulado()
+    )
+    monkeypatch.setattr(
+        api_main, "version_cargada", "v1.0"
     )
 
-    assert response.status_code == 200
+    respuesta = client.get("/health")
 
-    data = response.json()
+    assert respuesta.status_code == 200
 
-    assert data[
-        "message"
-    ] == "Sistema-MLOps API"
+    datos = respuesta.json()
 
-    assert data[
-        "status"
-    ] == "running"
-
-    assert data[
-        "model"
-    ] == "churn_model_v1"
+    assert datos["model_loaded"] is True
+    assert datos["model_version"] == "v1.0"
 
 
-def test_endpoint_health():
-    response = client.get(
-        "/health"
+def test_endpoint_predict_version_dinamica(monkeypatch):
+    """
+    Verifica que la predicción use y almacene
+    la versión activa, sin conectarse a PostgreSQL.
+    """
+
+    informacion_modelo = {
+        "modelo": ModeloSimulado(),
+        "caso_uso": "churn",
+        "version": "v1.0",
+        "algoritmo": "logistic_regression",
+    }
+
+    monkeypatch.setattr(
+        api_main,
+        "obtener_modelo",
+        lambda: informacion_modelo
     )
 
-    assert response.status_code == 200
+    registro = {}
 
-    data = response.json()
-
-    assert data[
-        "status"
-    ] == "healthy"
-
-    assert data[
-        "model"
-    ] == "churn_model"
-
-    assert data[
-        "model_version"
-    ] == "v1"
-    
-    assert isinstance(
-        data[
-            "model_loaded"
-        ],
-        bool
-    )
-
-@pytest.mark.skipif(
-    not RUTA_MODELO.exists(),
-    reason="El modelo entrenado no está disponible en este entorno"
-)
-
-def test_endpoint_predict(
-    monkeypatch
-):
-    def guardar_prediccion_mock(
-        **kwargs
-    ):
+    def guardar_prediccion_simulada(**kwargs):
+        registro.update(kwargs)
         return 999
 
     monkeypatch.setattr(
         api_main,
         "guardar_prediccion",
-        guardar_prediccion_mock
+        guardar_prediccion_simulada
     )
 
-    response = client.post(
+    respuesta = client.post(
         "/predict",
         json=DATOS_CLIENTE
     )
 
-    assert response.status_code == 200
+    assert respuesta.status_code == 200
 
-    data = response.json()
+    datos = respuesta.json()
 
-    assert data[
-        "prediction"
-    ] in [
-        0,
-        1
-    ]
+    assert datos["prediction"] == 1
+    assert datos["prediction_label"] == "Yes"
+    assert datos["churn_probability"] == 0.62
+    assert datos["model_version"] == "v1.0"
+    assert datos["prediction_id"] == 999
 
-    assert data[
-        "prediction_label"
-    ] in [
-        "Yes",
-        "No"
-    ]
+    assert registro["caso_uso"] == "churn"
+    assert registro["model_version"] == "v1.0"
+    assert registro["prediction"] == 1
 
-    assert (
-        0
-        <= data[
-            "churn_probability"
-        ]
-        <= 1
+
+def test_endpoint_predict_sin_version_activa(monkeypatch):
+    """La API debe responder con un error controlado."""
+
+    def simular_sin_modelo():
+        raise HTTPException(
+            status_code=404,
+            detail="No existe una versión activa del modelo."
+        )
+
+    monkeypatch.setattr(
+        api_main,
+        "obtener_modelo",
+        simular_sin_modelo
     )
 
-    assert data[
-        "model_version"
-    ] == "v1"
+    respuesta = client.post(
+        "/predict",
+        json=DATOS_CLIENTE
+    )
 
-    assert data[
-        "prediction_id"
-    ] == 999
+    assert respuesta.status_code == 404
+
+    assert respuesta.json()["detail"] == (
+        "No existe una versión activa del modelo."
+    )
 
 
 def test_endpoint_predict_datos_invalidos():
-    datos_invalidos = (
-        DATOS_CLIENTE.copy()
-    )
+    datos_invalidos = DATOS_CLIENTE.copy()
+    datos_invalidos["gender"] = "ValorInvalido"
 
-    datos_invalidos[
-        "gender"
-    ] = "ValorInvalido"
-
-    response = client.post(
+    respuesta = client.post(
         "/predict",
         json=datos_invalidos
     )
 
-    assert response.status_code == 422
+    assert respuesta.status_code == 422

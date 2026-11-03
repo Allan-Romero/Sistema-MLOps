@@ -39,3 +39,4 @@ mlflow.db*
 mlruns/
 mlartifacts/reports/
 reports/
+data/raw/creditcard.csv
