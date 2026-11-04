@@ -1,8 +1,12 @@
-name: CI - Tests
+name: CI-CD - Tests y entrega verificada
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   tests:
@@ -25,3 +29,43 @@ jobs:
 
       - name: Ejecutar pruebas
         run: python -m pytest -v
+
+  delivery:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: docker-compose.ci.yml
+      COMPOSE_PROJECT_NAME: mlops-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar clave efímera del entorno de prueba
+        run: |
+          password=$(openssl rand -hex 24)
+          echo "::add-mask::$password"
+          echo "CI_DB_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Construir las tres imágenes tras las pruebas
+        run: docker compose build
+      - name: Levantar y comprobar los cuatro servicios
+        run: docker compose up --wait --wait-timeout 240
+      - name: Probar HTTP, PostgreSQL, promoción y rollback en ambos casos
+        run: |
+          mkdir -p evidence
+          docker compose exec -T api python scripts/e2e_deployment.py > evidence/e2e.json
+          cat evidence/e2e.json
+      - name: Verificar datos y renderizado del dashboard para ambos casos
+        run: docker compose exec -T dashboard python scripts/check_dashboard.py > evidence/dashboard.json
+      - name: Recoger estado y logs
+        if: always()
+        run: |
+          mkdir -p evidence
+          docker compose ps -a > evidence/services.txt
+          docker compose logs --no-color > evidence/compose.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: entrega-${{ github.sha }}
+          path: evidence/
+      - name: Retirar solo el entorno efímero
+        if: always()
+        run: docker compose down --volumes --remove-orphans

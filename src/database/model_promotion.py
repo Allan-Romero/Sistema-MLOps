@@ -198,6 +198,16 @@ def registrar_candidato(
                 ),
             )
 
+            if decision.promover:
+                cursor.execute(
+                    """INSERT INTO deployments (
+                        caso_uso, version_origen, version_destino, tipo_operacion,
+                        motivo, metrica_principal, valor_metrica_origen, valor_metrica_destino
+                    ) VALUES (%s, %s, %s, 'promocion', %s, 'f1_score', %s, %s);""",
+                    (caso_uso, version_anterior, version, decision.motivo,
+                     f1_activo, decision.f1_candidato),
+                )
+
         conexion.commit()
         return {
             "registro_id": registro_id,

@@ -18,6 +18,7 @@ def entrada():
 
 @pytest.fixture
 def entorno_falso(monkeypatch):
+    monkeypatch.setattr(fraud, "obtener_experimento_activo", lambda caso: None)
     llamadas = []
     modelo = MagicMock()
     modelo.predict.return_value = [1]
@@ -108,3 +109,24 @@ def test_swagger_publica_fraude():
     assert r.status_code==200
     assert '/predict-fraud' in r.json()['paths']
     assert '/model-version/fraude' in r.json()['paths']
+
+
+def test_fraude_enruta_candidata_ab(entorno_falso, monkeypatch):
+    modelo, llamadas = entorno_falso
+    monkeypatch.setattr(fraud, "obtener_experimento_activo", lambda caso: {
+        "experimento_id": 8, "version_a": "v1", "version_b": "v2", "porcentaje_trafico_b": 100})
+    def cargar(caso, version, grupo):
+        assert (caso, version, grupo) == ("fraude", "v2", "B")
+        return {"modelo": modelo, "version": version}
+    monkeypatch.setattr(fraud, "obtener_modelo_ab", cargar)
+    respuesta = CLIENT.post("/predict-fraud", json=entrada())
+    assert respuesta.status_code == 200
+    assert respuesta.json()["model_version"] == "v2"
+    assert llamadas[0]["model_version"] == "v2"
+
+
+def test_fraude_no_ignora_fallo_consulta_ab(entorno_falso, monkeypatch):
+    def fallar(caso):
+        raise RuntimeError("sin conexión")
+    monkeypatch.setattr(fraud, "obtener_experimento_activo", fallar)
+    assert CLIENT.post("/predict-fraud", json=entrada()).status_code == 503

@@ -68,13 +68,34 @@ def obtener_modelo_ab(caso_uso, version, grupo):
 
     version_db, algoritmo, estado = registros[0]
 
-    if grupo == "A" and estado != "activa":
+    # Un experimento pospromoción compara la activa B con su predecesora A.
+    # La pareja debe corresponder a una promoción auditada, no a una histórica cualquiera.
+    pospromocion = False
+    if (grupo == "A" and estado == "historica") or (grupo == "B" and estado == "activa"):
+        try:
+            parejas = ejecutar_consulta(
+                """SELECT e.id FROM experiments e
+                   JOIN promotion_decisions p ON p.caso_uso = e.caso_uso
+                     AND p.version_anterior = e.version_a
+                     AND p.version_candidata = e.version_b AND p.resultado = 'promovida'
+                   JOIN model_versions a ON a.caso_uso = e.caso_uso AND a.version = e.version_a
+                   JOIN model_versions b ON b.caso_uso = e.caso_uso AND b.version = e.version_b
+                   WHERE e.caso_uso = %s AND e.estado = 'activo'
+                     AND a.estado = 'historica' AND b.estado = 'activa'
+                     AND (CASE WHEN %s = 'A' THEN e.version_a ELSE e.version_b END) = %s;""",
+                (caso_uso, grupo, version_db),
+            )
+            pospromocion = bool(parejas)
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="No fue posible validar la promoción A/B.") from error
+
+    if grupo == "A" and estado != "activa" and not pospromocion:
         raise HTTPException(
             status_code=409,
             detail="El grupo A debe usar la versión activa.",
         )
 
-    if grupo == "B" and estado != "candidata":
+    if grupo == "B" and estado != "candidata" and not pospromocion:
         raise HTTPException(
             status_code=409,
             detail="El grupo B requiere una versión candidata.",

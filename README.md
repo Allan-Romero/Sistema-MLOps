@@ -18,15 +18,26 @@ Plataforma MLOps automatizada para gestionar el ciclo de vida de modelos de clas
 | Contenedores | Docker Compose |
 | Integración continua | GitHub Actions |
 
-## Integración continua
+## Integración y entrega continua
 
-El proyecto cuenta con un pipeline de integración continua en GitHub Actions
-que se ejecuta automáticamente en cada push y Pull Request, instalando
-dependencias y ejecutando la suite de pruebas.
+GitHub Actions ejecuta `tests` en cada push y Pull Request. Solo si pasa,
+`delivery` construye API, dashboard y MLflow, inicia esos servicios junto
+con PostgreSQL mediante `docker-compose.ci.yml` y espera sus healthchecks.
+Se valida en PR antes del merge y se repite sobre `main` tras integrarse.
 
-El estado de la última ejecución se refleja en el badge al inicio de este
-documento. El historial completo está disponible en la pestaña Actions
-del repositorio.
+El alcance de entrega es construcción y arranque verificado en un entorno
+efímero del runner; no publica imágenes ni despliega en un servidor externo.
+El E2E recorre mejora y degradación para churn y fraude mediante HTTP real,
+PostgreSQL y los servicios de promoción/A/B/rollback, con modelos entrenados
+sobre datos sintéticos. Es evidencia funcional, no una validación científica
+con Telco/Credit Card ni una medición de mejora de la tesis.
+
+Se guardan JSON, estado de servicios y logs en el artefacto `entrega-<sha>`
+de Actions incluso si falla la ejecución. La clave de la base se genera por
+ejecución, se enmascara y no se guarda en el repositorio. El entorno se retira
+al terminar, sin tocar volúmenes de desarrollo.
+
+Ver [protocolo y pendientes de cierre](docs/sprint4_integracion_cierre.md).
 
 ## Estructura del proyecto
 
@@ -295,35 +306,51 @@ El pipeline genera varios artefactos en la carpeta `models/`:
 | `model_comparison.json` | Métricas comparativas de ambos modelos |
 | `model_selection.json` | Resultado de la selección automática |
 
-La API carga el modelo desde `models/churn_model_v1.joblib`, que corresponde
-al modelo activo en producción. Tras ejecutar el pipeline es necesario
-promover el candidato a modelo activo:
+La API consulta la versión activa en PostgreSQL en cada solicitud y carga
+su artefacto inmutable `models/<caso_uso>_model_<version>.joblib`. El registro
+del candidato compara F1 con la activa (mejora mínima absoluta 0,01), asigna
+versión y registra la decisión. No hay que copiar archivos a mano ni reiniciar.
+
+Para churn: `python -m src.training.run_pipeline`.
+Para fraude: `python -m src.training.pipeline_multicaso --caso-uso fraude --registrar`.
+El segundo requiere `data/raw/creditcard.csv`; ver
+[entrenamiento de fraude](docs/sprint4_j5_fraude_entrenamiento.md).
+
+Las nuevas bases aplican el esquema y las migraciones 001–003 al inicializarse.
+En volúmenes existentes, aplicar las migraciones con `psql -v ON_ERROR_STOP=1`
+antes de ejecutar pipelines; no borrar el volumen para migrar.
+
+## A/B y rollback para churn y fraude
+
+Después de una promoción con predecesora disponible, abrir una comparación
+pospromoción (A: anterior histórica, B: activa recién promovida):
 
 ```powershell
-Copy-Item models/churn_model_candidate.joblib models/churn_model_v1.joblib
-docker compose restart api
+python -m src.monitoring.experiment_service abrir --caso-uso churn
+python -m src.monitoring.experiment_service abrir --caso-uso fraude
 ```
 
-En Git Bash o Linux:
+Enviar tráfico a `/predict` o `/predict-fraud`. La API reparte según el
+porcentaje guardado en `experiments`; registrar las etiquetas verificadas
+mediante `src.database.crud.registrar_etiqueta_real(prediction_id, etiqueta)`.
+El script histórico `simular_trafico_ab` no sustituye esta verificación HTTP.
+Con al menos 30 etiquetas por versión, cerrar explícitamente:
 
-```bash
-cp models/churn_model_candidate.joblib models/churn_model_v1.joblib
-docker compose restart api
+```powershell
+python -m src.monitoring.experiment_service cerrar --caso-uso churn
+python -m src.monitoring.experiment_service cerrar --caso-uso fraude
 ```
 
-La carpeta `models/` se monta en el contenedor de la API en modo solo lectura,
-por lo que el archivo promovido queda disponible de inmediato. El reinicio es
-necesario porque la API conserva el modelo en memoria desde la primera
-predicción.
+Si B pierde al menos 0,01 de F1 frente a A, se restaura A y se registra el
+rollback y su motivo en `deployments`. En caso contrario se conserva B.
+El cierre, la ganadora y los cambios de estado son transaccionales. La próxima
+predicción sirve la elegida sin reiniciar. El dashboard permite seleccionar
+el caso y consultar experimentos, versiones e historial de despliegues.
 
-Esta promoción es manual en la versión actual. La automatización de la
-selección del modelo activo, junto con las estrategias de A/B testing y
-rollback, está prevista para una fase posterior del desarrollo.
-
-> **Nota:** los archivos de la carpeta `models/` son artefactos generados y
-> no se versionan en el repositorio. Si la API responde con el error
-> `No se encontró el modelo`, ejecute el pipeline de entrenamiento y
-> realice la promoción descrita arriba.
+La revisión periódica de drift/rollback sigue siendo explícita y segura por
+defecto: `python -m src.monitoring.rollback_auto --caso-uso churn` consulta;
+`--aplicar` ejecuta solo cuando su política lo autoriza. No se instala un
+scheduler desatendido automáticamente.
 
 ---
 
