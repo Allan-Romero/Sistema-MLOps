@@ -1,5 +1,6 @@
 """Renderiza Streamlit con consultas reales sobre la base efímera del E2E."""
 import json
+from pathlib import Path
 from streamlit.testing.v1 import AppTest
 from src.database.crud import obtener_version_activa
 
@@ -7,7 +8,8 @@ from src.database.crud import obtener_version_activa
 def main():
     evidencia = []
     for caso in ("churn", "fraude"):
-        app = AppTest.from_file("dashboard/app.py", default_timeout=120).run()
+        ruta_app = Path(__file__).resolve().parents[1] / "dashboard" / "app.py"
+        app = AppTest.from_file(str(ruta_app), default_timeout=120).run()
         app.selectbox[0].set_value(caso).run()
         assert not app.exception, [str(e) for e in app.exception]
         activa = obtener_version_activa(caso)[0][2]
