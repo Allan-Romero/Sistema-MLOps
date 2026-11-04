@@ -18,11 +18,33 @@ versionar y desplegar, no equivale a una prueba de significancia estadística.
 
 ## Preparación de una base existente
 
+Antes de las migraciones, dejar una sola versión activa por caso de uso. La
+migración 001 se detiene a propósito si encuentra más de una, y las bases
+creadas antes del Sprint 4 pueden tener varias, porque el `persist_results`
+anterior insertaba una fila `activa` en cada ejecución del pipeline:
+
+```sql
+UPDATE model_versions SET estado = 'historica'
+WHERE estado = 'activa' AND id NOT IN (
+    SELECT DISTINCT ON (caso_uso) id FROM model_versions
+    WHERE estado = 'activa' ORDER BY caso_uso, created_at DESC, id DESC);
+```
+
 En PowerShell, desde la raíz del proyecto, con PostgreSQL activo:
 
 ```powershell
 Get-Content .\src\database\migrations\001_unique_active_model.sql -Raw | docker compose exec -T postgres psql -U joseph -d mlops_db -v ON_ERROR_STOP=1
 Get-Content .\src\database\migrations\002_promotion_decisions.sql -Raw | docker compose exec -T postgres psql -U joseph -d mlops_db -v ON_ERROR_STOP=1
+```
+
+Falta un paso más, y sin él la API deja de responder: el artefacto de la
+versión activa debe llamarse como exige la convención nueva,
+`models/<caso_uso>_model_<version>.joblib`. Un modelo promovido a mano antes
+del Sprint 4 se llama `churn_model_v1.joblib`, y con la versión activa `v1.0`
+el endpoint responde 503 con «No existe el artefacto de la versión v1.0».
+
+```powershell
+Copy-Item models\churn_model_v1.joblib models\churn_model_v1.0.joblib
 ```
 
 `docker-compose.yml` ejecuta `schema.sql` al inicializar un volumen nuevo,
