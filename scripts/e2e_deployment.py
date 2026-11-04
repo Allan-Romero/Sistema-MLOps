@@ -44,17 +44,25 @@ def entrada(caso, valor):
                 MonthlyCharges=30.0, TotalCharges=30.0)
 
 
+def entrenar_modelos(caso):
+    """Entrena artefactos con el mismo esquema que recibe cada endpoint."""
+    columna = "Amount" if caso == "fraude" else "tenure"
+    columnas = list(FEATURE_COLUMNS) if caso == "fraude" else [columna]
+    x = pd.DataFrame(1.0, index=range(100), columns=columnas)
+    x[columna] = np.arange(100)
+    y = (x[columna] >= 50).astype(int)
+    control = DummyClassifier(strategy="constant", constant=1).fit(x, y)
+    candidata = DecisionTreeClassifier(max_depth=1, random_state=42).fit(x, y)
+    validacion = pd.DataFrame(1.0, index=range(4), columns=columnas)
+    validacion[columna] = [10, 20, 70, 80]
+    return control, candidata, validacion, np.array([0, 0, 1, 1])
+
+
 def ejecutar(caso, pierde):
     # Entrenamiento de control imperfecto y candidata sobre validación separada.
     # En el desenlace adverso se introduce concept shift EN LAS ENTRADAS,
     # nunca se alteran predicciones o etiquetas después de observar resultados.
-    columna = "Amount" if caso == "fraude" else "tenure"
-    x = pd.DataFrame({columna: np.arange(100)})
-    y = (x[columna] >= 50).astype(int)
-    control = DummyClassifier(strategy="constant", constant=1).fit(x, y)
-    candidata = DecisionTreeClassifier(max_depth=1, random_state=42).fit(x, y)
-    validacion = pd.DataFrame({columna: [10, 20, 70, 80]})
-    verdad = np.array([0, 0, 1, 1])
+    control, candidata, validacion, verdad = entrenar_modelos(caso)
     modelos = Path("/app/models")
     modelos.mkdir(exist_ok=True)
     resultados = []
