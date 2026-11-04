@@ -16,6 +16,7 @@ COPY src/ ./src/
 
 # Usuario sin privilegios para ejecutar el servicio
 RUN useradd --create-home --uid 1000 appuser \
+    && mkdir -p /app/models \
     && chown -R appuser:appuser /app
 USER appuser
 
