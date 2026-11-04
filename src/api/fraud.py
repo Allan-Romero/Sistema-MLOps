@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
 import pandas as pd
 
 from src.api.model_loader import obtener_modelo_activo
+from src.api.ab_models import obtener_modelo_ab
+from src.api.ab_routing import obtener_experimento_activo, seleccionar_version_ab
 from src.database.crud import guardar_prediccion, obtener_version_activa
 from src.training.fraud_features import FEATURE_COLUMNS
 
@@ -58,7 +60,15 @@ class FraudInput(BaseModel):
 )
 def predecir_fraude(datos: FraudInput):
     # No fijar ni la versión ni la ruta del .joblib; soporte de J1/J2.
-    informacion = obtener_modelo_activo("fraude")
+    try:
+        experimento = obtener_experimento_activo("fraude")
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="No fue posible consultar el experimento A/B.") from exc
+    if experimento is None:
+        informacion = obtener_modelo_activo("fraude")
+    else:
+        asignacion = seleccionar_version_ab(experimento)
+        informacion = obtener_modelo_ab("fraude", asignacion["version"], asignacion["grupo"])
     modelo = informacion["modelo"]
     version = informacion["version"]
 

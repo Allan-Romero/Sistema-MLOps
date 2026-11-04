@@ -86,6 +86,11 @@ def test_decision_se_registra_en_auditoria(
     assert parametros[8] == resultado_esperado
     assert parametros[9] == resultado["motivo"]
 
+    despliegues = [c for c in cursor.execute.call_args_list if "INSERT INTO deployments" in c.args[0]]
+    assert len(despliegues) == (1 if resultado_esperado == "promovida" else 0)
+    if despliegues:
+        assert despliegues[0].args[1][1:3] == ("v1.0", "v1.1")
+
     conexion.commit.assert_called_once()
 
 

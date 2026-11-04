@@ -140,3 +140,16 @@ def test_error_base_datos(monkeypatch, entorno):
         )
 
     assert error.value.status_code == 503
+
+
+@pytest.mark.parametrize("grupo,estado,version", [("A", "historica", "v1.0"), ("B", "activa", "v1.2")])
+@pytest.mark.parametrize("auditada", [False, True])
+def test_pospromocion_exige_pareja_auditada(monkeypatch, entorno, grupo, estado, version, auditada):
+    respuestas = iter([[(version, "logistic_regression", estado)], [(7,)] if auditada else []])
+    monkeypatch.setattr(ab_models, "ejecutar_consulta", lambda query, params: next(respuestas))
+    if auditada:
+        assert ab_models.obtener_modelo_ab("churn", version, grupo)["modelo"] is entorno
+    else:
+        with pytest.raises(HTTPException) as error:
+            ab_models.obtener_modelo_ab("churn", version, grupo)
+        assert error.value.status_code == 409

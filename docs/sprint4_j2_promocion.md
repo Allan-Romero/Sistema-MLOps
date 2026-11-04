@@ -26,9 +26,9 @@ Get-Content .\src\database\migrations\002_promotion_decisions.sql -Raw | docker 
 ```
 
 `docker-compose.yml` ejecuta `schema.sql` al inicializar un volumen nuevo,
-pero **no ejecuta automáticamente estas migraciones**. Aplicarlas al crear
-otro entorno. Coordinar la futura inclusión de migraciones con la tabla
-`deployments` de S4-A1, para no sobrescribir los cambios paralelos de Allan.
+y las migraciones 001–003 al crear un volumen nuevo. Los volúmenes existentes
+requieren aplicar las migraciones explícitamente. Las promociones aprobadas
+también se registran en `deployments` dentro de la misma transacción.
 
 ## Validación del caso existente (sin entrenamiento nuevo)
 
