@@ -35,10 +35,9 @@ def cargar_datos_entrenamiento():
     return X_train, y_train
 
 
-def entrenar_modelo(X_train, y_train):
-    """Entrena el modelo XGBoost."""
-
-    modelo = XGBClassifier(
+def construir_modelo():
+    """Configuración única, compartida por pipeline y comparación reproducible."""
+    return XGBClassifier(
         n_estimators=200,
         max_depth=4,
         learning_rate=0.05,
@@ -49,6 +48,9 @@ def entrenar_modelo(X_train, y_train):
         n_jobs=-1
     )
 
+def entrenar_modelo(X_train, y_train):
+    """Entrena el modelo XGBoost."""
+    modelo = construir_modelo()
     modelo.fit(X_train, y_train)
 
     print("\nModelo XGBoost entrenado correctamente.")
