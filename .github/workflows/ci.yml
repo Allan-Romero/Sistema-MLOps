@@ -27,8 +27,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Ejecutar pruebas
-        run: python -m pytest -v
+      - name: Ejecutar pruebas y cobertura de líneas y ramas
+        run: |
+          mkdir -p reports/sprint5
+          python -m pytest -ra --junitxml=reports/sprint5/junit.xml --cov --cov-report=term-missing --cov-report=html --cov-report=xml --cov-report=json
+      - name: Resumir alcance y omisiones verificadas
+        run: python scripts/resumir_pruebas.py --salida reports/sprint5/resumen.json
+      - name: Conservar resultados, omisiones y cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruebas-cobertura-${{ github.sha }}
+          path: reports/sprint5/
 
   delivery:
     needs: tests
