@@ -22,10 +22,11 @@ CASOS_USO = {
     },
     "fraude": {
         "etiqueta": "Fraude en transacciones",
-        "referencia": PROJECT_ROOT / "data" / "raw" / "fraude.csv",
-        # Variables interpretables del dataset de tarjetas de crédito. Las
-        # componentes V1..V28 son resultado de un PCA y no se vigilan hasta
-        # que S4-J5 defina cuáles usa el modelo.
+        # El mismo archivo que entrena src/training/fraud_pipeline.py.
+        # No se versiona: hay que descargarlo antes de entrenar o monitorear.
+        "referencia": PROJECT_ROOT / "data" / "raw" / "creditcard.csv",
+        # El modelo usa las 30 variables, pero V1..V28 son componentes de un
+        # PCA sin significado propio: se vigilan las dos interpretables.
         "columnas_numericas": ["Time", "Amount"],
         "reporte_drift": PROJECT_ROOT / "reports" / "drift_report_fraude.html",
     },

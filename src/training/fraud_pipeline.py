@@ -28,6 +28,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
+from src.consola import usar_utf8
 from src.training.fraud_features import CASO_USO, FEATURE_COLUMNS, TARGET_COLUMN, validar_columnas
 from src.training.fraud_model import ThresholdClassifier
 
@@ -230,6 +231,7 @@ def registrar():
 
 
 def main():
+    usar_utf8()
     parser = argparse.ArgumentParser(description="Pipeline de fraude S4-J5")
     parser.add_argument("--registrar", action="store_true", help="Persistir el candidato en PostgreSQL")
     argumentos = parser.parse_args()

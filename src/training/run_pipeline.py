@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from src.consola import usar_utf8
 from src.training.preprocess import main as ejecutar_preprocesamiento
 from src.training.train_model import main as ejecutar_entrenamiento_logistic
 from src.training.evaluate_model import main as ejecutar_evaluacion_logistic
@@ -75,6 +76,9 @@ def validar_salidas():
 
 def main():
     """Ejecuta el pipeline completo de entrenamiento de churn."""
+
+    # MLflow imprime caracteres que la consola de Windows no codifica.
+    usar_utf8()
 
     print("=" * 60)
     print("PIPELINE DE ENTRENAMIENTO - CHURN")

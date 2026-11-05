@@ -7,6 +7,8 @@ transaccional de versiones y métrica F1 para la política de promoción.
 
 import argparse
 
+from src.consola import usar_utf8
+
 
 def ejecutar(caso_uso, registrar=False):
     if caso_uso == "churn":
@@ -21,6 +23,7 @@ def ejecutar(caso_uso, registrar=False):
 
 
 def main():
+    usar_utf8()
     parser = argparse.ArgumentParser(description="Pipeline MLOps multi-caso de uso")
     parser.add_argument("--caso-uso", required=True, choices=("churn", "fraude"))
     parser.add_argument("--registrar", action="store_true", help="Registrar modelo de fraude entrenado")
