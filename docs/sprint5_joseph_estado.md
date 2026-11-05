@@ -22,8 +22,8 @@ de factorías de modelos conserva los hiperparámetros productivos.
 |---|---|---|
 | #110 S5-J1 | Script de comparación real sin mutaciones; tabla de ambos algoritmos/dos casos; warning capturado y explicado; selección y métricas justificadas; texto académico propuesto. | Revisión de los autores, incorporación al documento oficial y conformidad académica. No se presupone aprobación del asesor. |
 | #111 S5-J2 | Arquitectura, flujos y cuatro diagramas actualizados; estados y umbrales descritos desde código. | Revisión cruzada e incorporación de figuras al documento, con numeración institucional. |
-| #112 S5-J3 | Manual desde clonación, perfiles de dependencias con fuente única de versiones, verificador de reproducción. | Ensayo limpio completo con Python 3.11, Docker, inferencia y evidencia de los nuevos manifiestos. La instalación local Python 3.14 se informa por separado. |
-| #113 S5-J4 | Once casos adicionales, suite local, cobertura global y crítica, omisiones auditadas, reportes y artefactos en CI. | Ejecución del commit de Sprint 5 en GitHub Actions y revisión cruzada del PR. |
+| #112 S5-J3 | Manual desde clonación, perfiles de dependencias con fuente única de versiones, verificador de reproducción; CI Python 3.11 e imágenes nuevas aprobadas. | Seguir literalmente el manual en una instalación nueva con CSV reales, entrenamiento, registro y predicción productivos de ambos casos. El E2E de CI es sintético. |
+| #113 S5-J4 | Once casos adicionales, suite local y CI aprobadas, cobertura global y crítica, cero omisiones, reportes y artefactos conservados. | Revisión cruzada del PR y referencia de las evidencias en la issue. |
 
 Los resultados exactos y versiones están en `docs/evidencias/sprint5/`.
 La cobertura mide todo `src/`, incluidos módulos nunca ejecutados, y no
@@ -44,8 +44,26 @@ proceso no sustituyen el job `delivery` con PostgreSQL y contenedores reales.
   deprecación de Starlette/httpx. Cobertura combinada de líneas y ramas de
   todo `src/`: 41,06 %. Las tablas por componente están en el resumen JSON.
 - La configuración Compose CI es válida. El motor Docker no estaba
-  disponible desde este entorno, por lo que las nuevas imágenes y la
-  validación Python 3.11 quedan pendientes del workflow de este commit.
+  disponible durante la preparación local. Posteriormente CI verificó las
+  nuevas imágenes y Python 3.11 sobre el commit `1785e49`, como se registra abajo.
+
+### Validación remota comprobada
+
+La [ejecución 42115711662](https://github.com/Allan-Romero/Sistema-MLOps/actions/runs/42115711662)
+del commit `1785e49` terminó con `tests` y `delivery` en `success`.
+Se revisaron también sus artefactos, no solo el indicador verde:
+
+- Linux/Python 3.11.18: 177 pruebas aprobadas, cero fallos, errores y omisiones.
+- Cobertura combinada de líneas y ramas de `src/`: 42,26 % en ese entorno.
+  Se mantiene separado el 41,06 % del entorno local; no se sustituyen ni mezclan reportes.
+- Tres imágenes construidas y cuatro servicios levantados con healthchecks.
+- HTTP/PostgreSQL reales: promoción y rollback para churn y fraude usando
+  datos sintéticos; AppTest del dashboard aprobado para ambos casos.
+- [Resumen de pruebas de CI](evidencias/sprint5/pruebas_ci.json), con entorno,
+  conteos, cobertura y hashes. Los artefactos completos están en Actions.
+
+La precisión textual de S5-J1 se corrigió después para describir selección
+independiente del test, sin cambiar código Python ni resultados.
 
 ### Límites de integración
 

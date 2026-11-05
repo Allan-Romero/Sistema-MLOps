@@ -53,7 +53,7 @@ Las cifras históricas de #110 (0,6052/0,5891) no se copian como resultados de e
 
 ## Texto propuesto para el documento académico
 
-> En la comparación realizada sobre datasets públicos, el modelo de regresión logística resultó competitivo frente a XGBoost. Las diferencias observadas dependen del caso de uso, la partición y la métrica elegida. La selección de fraude se fijó mediante validación antes de observar el test; en churn se conservó el procedimiento histórico, cuya reutilización del test para seleccionar modelo se reconoce como limitación. Estos resultados demuestran la capacidad de la plataforma para comparar y registrar algoritmos sin suponer de antemano la superioridad de uno de ellos. La advertencia de convergencia de churn se conserva y declara explícitamente.
+> En la comparación realizada sobre datasets públicos, el modelo de regresión logística resultó competitivo frente a XGBoost. Las diferencias observadas dependen del caso de uso, la partición y la métrica elegida. La selección de fraude utiliza exclusivamente métricas de validación y es independiente de las métricas de test; en churn se conservó el procedimiento histórico, cuya reutilización del test para seleccionar modelo se reconoce como limitación. Estos resultados demuestran la capacidad de la plataforma para comparar y registrar algoritmos sin suponer de antemano la superioridad de uno de ellos. La advertencia de convergencia de churn se conserva y declara explícitamente.
 
 Este texto es una propuesta para revisión de los autores y del asesor; no se modificó el documento oficial de tesis ni sus cinco objetivos. Completar la aprobación/revisión cruzada y publicar evidencias antes de cerrar #110.
 

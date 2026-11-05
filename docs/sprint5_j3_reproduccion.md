@@ -298,10 +298,14 @@ contraseñas ni `.env`. Revisar logs antes de adjuntarlos.
   5/11/2026; 22 dependencias directas con versión central y sin errores.
 - Docker local del agente: el motor no estaba disponible; **no se afirma**
   reproducción limpia con contenedores de esta revisión a partir de esa comprobación.
-- Instalación limpia en Python 3.11 y ensayo completo: requieren registro
-  del líder/CI de esta revisión antes de marcar el criterio como cumplido.
-- El Sprint 4 tiene evidencia anterior de E2E aprobado; no sustituye verificar
-  las imágenes de Sprint 5 que ahora consumen manifiestos reorganizados.
+- La [ejecución de Sprint 5 42115711662](https://github.com/Allan-Romero/Sistema-MLOps/actions/runs/42115711662)
+  comprobó instalación y 177 pruebas en Linux/Python 3.11.18, construcción
+  de las tres imágenes, salud de los cuatro servicios, E2E y dashboard.
+  Ver [resumen CI](evidencias/sprint5/pruebas_ci.json). Esta evidencia usa los
+  manifiestos reorganizados del Sprint 5, no imágenes anteriores del Sprint 4.
+- Sigue pendiente recorrer literalmente este manual en una instalación
+  nueva con descarga de CSV reales, entrenamiento, registro y predicciones
+  productivas de ambos casos. El ensayo sintético de CI no acredita esos pasos.
 
 ## 12. Diagnóstico de fallos frecuentes
 
