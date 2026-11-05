@@ -1,0 +1,23 @@
+flowchart TB
+  start[Versión B activa, A histórica\nPromoción auditada y artefacto A disponible]
+  ab[Cierre A/B explícito\n>=30 etiquetas por versión]
+  abp{F1 B <= F1 A - 0.01?}
+  keep[Finalizar experimento y conservar B\nNo equivale a superioridad estadística]
+  drift[Revisión rollback_auto\nA/B cerrado reciente o drift alto + etiquetas]
+  dap{A/B cerrado reciente: B activa, >=30 por grupo\ny caída F1 B respecto A >=0.01?}
+  dp{Drift alto reciente + F1 actual <0.55\nF1 anterior >=0.55 y >=30 por versión?}
+  preview[Sin --aplicar: recomendación\nSin evidencia: no modificar]
+  rollback[Transacción y bloqueo por caso\nB descartada, A activa y deployment rollback]
+  abend[Cierre A/B: experimento finalizado con A ganadora]
+  autoend[Servicio rollback: cancelar experimentos activos]
+  api[Próxima petición consulta BD y sirve A\nSin copiar modelos ni reiniciar API]
+  start --> ab --> abp
+  abp -->|No| keep
+  abp -->|Sí| rollback
+  start --> drift --> dap
+  dap -->|Sí y --aplicar| rollback
+  dap -->|No| dp
+  dp -->|No o solo consulta| preview
+  dp -->|Sí y --aplicar| rollback
+  rollback --> abend --> api
+  rollback --> autoend --> api
