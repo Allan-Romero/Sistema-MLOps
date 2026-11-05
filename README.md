@@ -68,6 +68,23 @@ Ver [protocolo y pendientes de cierre](docs/sprint4_integracion_cierre.md).
 
 ## Documentación complementaria
 
+### Sprint 5 — entregables de Joseph
+
+- [Comparación de algoritmos y discusión](docs/sprint5_j1_comparacion.md):
+  métricas reales de churn y fraude, convergencia y límites de interpretación.
+- [Arquitectura construida y figuras](docs/sprint5_j2_arquitectura.md).
+- [Manual de despliegue y reproducción](docs/sprint5_j3_reproduccion.md):
+  instalación desde cero y fuente común de versiones de dependencias.
+- [Pruebas, cobertura y omisiones](docs/sprint5_j4_pruebas.md).
+- [Estado y criterios de aceptación](docs/sprint5_joseph_estado.md).
+
+Las versiones directas se mantienen en `requirements/constraints.txt`.
+`requirements.txt` reúne los perfiles del entorno completo y cada imagen
+consume solo su perfil. Las dependencias transitivas las resuelve pip;
+guardar su reporte de instalación para identificar el entorno exacto.
+
+### Documentación base
+
 - `docs/git-flow.md`: flujo de trabajo con Git y convenciones del equipo.
 - `docs/definition-of-done.md`: criterios de aceptación transversales.
 - `docs/datasets.md`: descripción completa del dataset.
