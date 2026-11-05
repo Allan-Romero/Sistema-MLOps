@@ -6,8 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY docker/requirements-mlflow.txt ./requirements-mlflow.txt
-RUN pip install --no-cache-dir --retries 10 --timeout 120 -r requirements-mlflow.txt
+COPY requirements/ ./requirements/
+COPY docker/requirements-mlflow.txt ./docker/requirements-mlflow.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 120 -r docker/requirements-mlflow.txt
 
 # Backend de metadatos y destino de artefactos (se montan desde el host)
 ENV MLFLOW_BACKEND_STORE_URI=sqlite:////app/mlflow.db \

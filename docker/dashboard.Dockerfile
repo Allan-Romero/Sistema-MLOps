@@ -8,8 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Dependencias de Python (capa cacheada: solo se reinstala si cambia el archivo)
-COPY docker/requirements-dashboard.txt ./requirements-dashboard.txt
-RUN pip install --no-cache-dir --retries 10 --timeout 120 -r requirements-dashboard.txt
+COPY requirements/ ./requirements/
+COPY docker/requirements-dashboard.txt ./docker/requirements-dashboard.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 120 -r docker/requirements-dashboard.txt
 
 # Código de la aplicación
 COPY src/ ./src/
