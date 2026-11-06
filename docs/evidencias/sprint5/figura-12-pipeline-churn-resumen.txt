@@ -1,0 +1,65 @@
+============================================================
+PIPELINE DE ENTRENAMIENTO - CHURN
+============================================================
+[1/8] PREPROCESAMIENTO
+========== PREPROCESAMIENTO CHURN ==========
+Dimensión original: (7043, 21)
+Dimensión después de limpieza: (7043, 20)
+Valores nulos: 0
+========== RESULTADO ==========
+[2/8] ENTRENAMIENTO LOGISTIC REGRESSION
+========== ENTRENAMIENTO MODELO BASE ==========
+========== RESULTADO ==========
+Modelo: Logistic Regression
+[3/8] EVALUACIÓN LOGISTIC REGRESSION
+========== EVALUACIÓN MODELO BASE ==========
+========== MÉTRICAS ==========
+Accuracy:  0.8055
+F1-score:  0.6052
+ROC-AUC:   0.8428
+Métricas guardadas en:
+[4/8] ENTRENAMIENTO XGBOOST
+========== ENTRENAMIENTO XGBOOST ==========
+========== RESULTADO ==========
+Modelo: XGBoost
+[5/8] COMPARACIÓN DE MODELOS
+========== COMPARACIÓN DE MODELOS ==========
+========== MÉTRICAS COMPARATIVAS ==========
+[6/8] SELECCIÓN DEL MEJOR MODELO
+========== SELECCIÓN DE MEJOR MODELO ==========
+Métrica de decisión: f1_score
+Logistic Regression: f1_score = 0.605187
+XGBoost: f1_score = 0.589102
+========== MODELO SELECCIONADO ==========
+Modelo: Logistic Regression
+Métrica: f1_score
+Valor: 0.605187
+Estado: candidate
+[7/8] REGISTRO DE EXPERIMENTOS EN MLFLOW
+========== REGISTRO MLFLOW ==========
+Estado: candidate
+========== VERSIÓN REGISTRADA ==========
+Versión MLflow: 10
+Versión proyecto: v1.9
+Métrica: f1_score
+Valor: 0.605187
+Estado: candidate
+Estado: evaluated
+========== HISTORIAL DE VERSIONES ==========
+========== RESULTADO ==========
+[8/8] PERSISTENCIA EN POSTGRESQL
+========== PERSISTENCIA MLOPS ==========
+========== DECISION DE PROMOCION ==========
+Versión candidata: v1.3
+Versión anterior: v1.0
+F1 candidato: 0.605187
+F1 activo: 0.605187
+Estado: descartada
+Motivo: El candidato no alcanza la mejora mínima.
+========== RESULTADO FINAL ==========
+Versión: v1.3
+Estado: descartada
+Modelo descartado. Producción sin cambios.
+============================================================
+PIPELINE COMPLETADO CORRECTAMENTE
+============================================================

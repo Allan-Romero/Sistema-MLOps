@@ -1,0 +1,15 @@
+========== DETECCIÓN DE DATA DRIFT ==========
+
+Caso de uso: churn
+Registros de referencia: 7032
+Registros de producción: 993
+Umbral de decisión (PSI): 0.25
+
+Variable                   PSI       Nivel
+------------------------------------------
+tenure                  0.0096        bajo
+MonthlyCharges          0.0050        bajo
+TotalCharges            0.0694        bajo
+
+Resultado: no se detectó drift.
+No se generaron alertas.
