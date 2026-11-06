@@ -55,6 +55,25 @@ que está en las figuras 13, 14 y 18.
 El reparto observado fue de 219 predicciones para el control y 101 para la
 candidata sobre 320 peticiones, frente al 30 % configurado.
 
+### Para rehacer la figura 24 con el modelo real de fraude
+
+Hace falta el CSV de tarjetas de crédito, que no se versiona. Descargarlo de
+OpenML con `fetch_openml(data_id=1597)` **no sirve**: esa copia trae 29
+variables y el contrato del pipeline exige 30, porque le falta `Time`.
+
+```
+ValueError -> Columnas de fraude faltantes: ['Time']
+```
+
+El archivo que usó S5-J5 para entrenar sí la incluye; su SHA-256 está en
+`comparacion_algoritmos.json`. Con ese archivo en `data/raw/creditcard.csv`:
+
+```powershell
+python -m src.training.pipeline_multicaso --caso-uso fraude --registrar
+```
+
+y después capturar el dashboard con el caso de fraude seleccionado.
+
 ## Evidencias en texto
 
 El texto que respalda las figuras generadas a partir de salidas de consola se
