@@ -32,6 +32,7 @@ documento usa otra numeración, basta con renombrar los archivos.
 | 20 | `figuras/sprint5/figura-20-workflow-ci.png` | Ejecuciones del workflow de integración continua en verde | GitHub Actions del repositorio |
 | 22 | `figuras/sprint5/figura-22-experimento-ab.png` | Experimento A/B en curso: tráfico configurado frente al obtenido, desempeño de cada grupo con su muestra y la ventaja señalada | Entorno de validación aislado (ver nota) |
 | 23 | `figuras/sprint5/figura-23-historial-despliegues.png` | Bitácora con cinco promociones y un rollback, con el motivo de cada operación y la versión en producción | Entorno de validación aislado (ver nota) |
+| 24 | `figuras/sprint5/figura-24-dashboard-fraude.png` | El dashboard operando sobre el segundo caso de uso: promociones, rollback y versión en producción de fraude | Entorno de validación aislado (ver nota) |
 
 ## Nota sobre las figuras 22 y 23
 
