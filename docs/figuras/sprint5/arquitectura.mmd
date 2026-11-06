@@ -1,0 +1,23 @@
+flowchart LR
+  operador[Operador / navegador]
+  host[Host: Python CLI\nEntrenamiento y gestión de versiones]
+  datos[(CSV públicos\ndata/raw)]
+  modelos[(Artefactos inmutables\nmodels/*.joblib)]
+  subgraph compose[Docker Compose: red mlops_net]
+    api[FastAPI\n8000]
+    dashboard[Streamlit\n8501]
+    mlflow[MLflow\n5000]
+    pg[(PostgreSQL 16\n5432)]
+  end
+  operador -->|HTTP: predict y docs| api
+  operador -->|HTTP: tablero| dashboard
+  operador -->|HTTP: experimentos churn| mlflow
+  host -->|preprocesar y entrenar| datos
+  host -->|crear versiones| modelos
+  host -->|registrar métricas y decisiones| pg
+  host -->|tracking churn| mlflow
+  api -->|leer configuración y persistir predicciones| pg
+  modelos -->|lectura /app/models| api
+  dashboard -->|consultar métricas y estados| pg
+  datos -->|referencia para drift| dashboard
+  dashboard -.->|CLI detect_drift si se invoca en este contenedor| pg

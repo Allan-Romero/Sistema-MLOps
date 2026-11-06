@@ -1,0 +1,268 @@
+{
+  "tipo": "entrenamiento_real_offline_no_cambia_produccion",
+  "estrategia": "reportar_hallazgo_sin_ajuste",
+  "fecha_utc": "2026-11-05T21:40:29.155275+00:00",
+  "python": "3.14.5",
+  "versiones": {
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.2.0",
+    "pandas": "3.0.5",
+    "numpy": "2.4.6"
+  },
+  "commit_base": "f245128bec0e23d696f2a5bdc994677f6754e00e",
+  "sha256_fuentes": {
+    "src/training/train_model.py": "75b230c824122dddff2230d5f3b5b736f926c6a2c6c518d67372d696bc21de48",
+    "src/training/train_xgboost.py": "4d6d594efd1338cc2808bf4c425b9a3a7e86a8da6ee70081507ef6d3bc928229",
+    "src/training/preprocess.py": "c66026872e85a2447f4465ef0f4e81f3e6d249cc9c09641237fd3f1eb2b69d59",
+    "src/training/fraud_pipeline.py": "4e775a169a89194d11f504a0d3e00e894a697f5f69164a2bf834863ab520da4b",
+    "scripts/comparar_algoritmos_s5.py": "0a469e3f9232438f54d698569854d5792e5a20144636953be6db35b390412411"
+  },
+  "datasets": {
+    "churn": {
+      "archivo": "churn.csv",
+      "sha256": "88be4b93fbe0cc83421af1c503794c97c342eca914c1576db7c276e61d61358a"
+    },
+    "fraude": {
+      "archivo": "creditcard.csv",
+      "sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89"
+    }
+  },
+  "churn": {
+    "filas": 7043,
+    "positivos": 1869,
+    "particiones": {
+      "train": 5634,
+      "test": 1409
+    },
+    "seleccion_sobre": "test_historico_no_validacion_independiente",
+    "algoritmo_elegido": "logistic_regression",
+    "resultados": {
+      "logistic_regression": {
+        "umbral": 0.5,
+        "hiperparametros": {
+          "C": 1.0,
+          "class_weight": null,
+          "dual": false,
+          "fit_intercept": true,
+          "intercept_scaling": 1,
+          "l1_ratio": 0.0,
+          "max_iter": 1000,
+          "n_jobs": null,
+          "penalty": "deprecated",
+          "random_state": 42,
+          "solver": "lbfgs",
+          "tol": 0.0001,
+          "verbose": 0,
+          "warm_start": false
+        },
+        "advertencias_fit": [
+          {
+            "categoria": "ConvergenceWarning",
+            "mensaje": "lbfgs failed to converge after 1000 iteration(s) (status=1):\nSTOP: TOTAL NO. OF ITERATIONS REACHED LIMIT\n\nIncrease the number of iterations to improve the convergence (max_iter=1000).\nYou might also want to scale the data as shown in:\n    https://scikit-learn.org/stable/modules/preprocessing.html\nPlease also refer to the documentation for alternative solver options:\n    https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression"
+          }
+        ],
+        "convergence_warning": true,
+        "test": {
+          "accuracy": 0.8048261178140526,
+          "precision": 0.6551724137931034,
+          "recall": 0.5588235294117647,
+          "f1_score": 0.6031746031746031,
+          "roc_auc": 0.8428039990699837,
+          "pr_auc": 0.6363366333762586
+        },
+        "iteraciones": [
+          1000
+        ]
+      },
+      "xgboost": {
+        "umbral": 0.5,
+        "hiperparametros": {
+          "objective": "binary:logistic",
+          "base_score": null,
+          "booster": null,
+          "callbacks": null,
+          "colsample_bylevel": null,
+          "colsample_bynode": null,
+          "colsample_bytree": 0.8,
+          "device": null,
+          "early_stopping_rounds": null,
+          "enable_categorical": false,
+          "eval_metric": "logloss",
+          "feature_types": null,
+          "feature_weights": null,
+          "gamma": null,
+          "grow_policy": null,
+          "importance_type": null,
+          "interaction_constraints": null,
+          "learning_rate": 0.05,
+          "max_bin": null,
+          "max_cat_threshold": null,
+          "max_cat_to_onehot": null,
+          "max_delta_step": null,
+          "max_depth": 4,
+          "max_leaves": null,
+          "min_child_weight": null,
+          "missing": NaN,
+          "monotone_constraints": null,
+          "multi_strategy": null,
+          "n_estimators": 200,
+          "n_jobs": -1,
+          "num_parallel_tree": null,
+          "random_state": 42,
+          "reg_alpha": null,
+          "reg_lambda": null,
+          "sampling_method": null,
+          "scale_pos_weight": null,
+          "subsample": 0.8,
+          "tree_method": null,
+          "validate_parameters": null,
+          "verbosity": null
+        },
+        "advertencias_fit": [],
+        "convergence_warning": false,
+        "test": {
+          "accuracy": 0.8005677785663591,
+          "precision": 0.6555183946488294,
+          "recall": 0.5240641711229946,
+          "f1_score": 0.5824665676077266,
+          "roc_auc": 0.8451484150972642,
+          "pr_auc": 0.6555490788212263
+        }
+      }
+    }
+  },
+  "fraude": {
+    "filas": 284807,
+    "positivos": 492,
+    "particiones": {
+      "train": 199364,
+      "validacion": 42721,
+      "test": 42722
+    },
+    "seleccion_sobre": "validacion",
+    "algoritmo_elegido": "logistic_regression",
+    "resultados": {
+      "logistic_regression": {
+        "umbral": 0.9999998716474106,
+        "hiperparametros": {
+          "memory": null,
+          "steps": [
+            [
+              "standardscaler",
+              "StandardScaler()"
+            ],
+            [
+              "logisticregression",
+              "LogisticRegression(class_weight='balanced', max_iter=1000, random_state=42)"
+            ]
+          ],
+          "transform_input": null,
+          "verbose": false,
+          "standardscaler": "StandardScaler()",
+          "logisticregression": "LogisticRegression(class_weight='balanced', max_iter=1000, random_state=42)",
+          "standardscaler__copy": true,
+          "standardscaler__with_mean": true,
+          "standardscaler__with_std": true,
+          "logisticregression__C": 1.0,
+          "logisticregression__class_weight": "balanced",
+          "logisticregression__dual": false,
+          "logisticregression__fit_intercept": true,
+          "logisticregression__intercept_scaling": 1,
+          "logisticregression__l1_ratio": 0.0,
+          "logisticregression__max_iter": 1000,
+          "logisticregression__n_jobs": null,
+          "logisticregression__penalty": "deprecated",
+          "logisticregression__random_state": 42,
+          "logisticregression__solver": "lbfgs",
+          "logisticregression__tol": 0.0001,
+          "logisticregression__verbose": 0,
+          "logisticregression__warm_start": false
+        },
+        "advertencias_fit": [],
+        "convergence_warning": false,
+        "test": {
+          "accuracy": 0.9994850428350732,
+          "precision": 0.90625,
+          "recall": 0.7837837837837838,
+          "f1_score": 0.8405797101449275,
+          "roc_auc": 0.9679722632029891,
+          "pr_auc": 0.7928733741399766
+        },
+        "iteraciones": [
+          42
+        ],
+        "validacion": {
+          "accuracy": 0.9992509538634395,
+          "precision": 0.8,
+          "recall": 0.7567567567567568,
+          "f1_score": 0.7777777777777778,
+          "roc_auc": 0.9683900961951001,
+          "pr_auc": 0.6300872677700333
+        }
+      },
+      "xgboost": {
+        "umbral": 0.983981192111969,
+        "hiperparametros": {
+          "objective": "binary:logistic",
+          "base_score": null,
+          "booster": null,
+          "callbacks": null,
+          "colsample_bylevel": null,
+          "colsample_bynode": null,
+          "colsample_bytree": 0.85,
+          "device": null,
+          "early_stopping_rounds": null,
+          "enable_categorical": false,
+          "eval_metric": "logloss",
+          "feature_types": null,
+          "feature_weights": null,
+          "gamma": null,
+          "grow_policy": null,
+          "importance_type": null,
+          "interaction_constraints": null,
+          "learning_rate": 0.05,
+          "max_bin": null,
+          "max_cat_threshold": null,
+          "max_cat_to_onehot": null,
+          "max_delta_step": null,
+          "max_depth": 4,
+          "max_leaves": null,
+          "min_child_weight": null,
+          "missing": NaN,
+          "monotone_constraints": null,
+          "multi_strategy": null,
+          "n_estimators": 180,
+          "n_jobs": 2,
+          "num_parallel_tree": null,
+          "random_state": 42,
+          "reg_alpha": null,
+          "reg_lambda": null,
+          "sampling_method": null,
+          "scale_pos_weight": 578.546511627907,
+          "subsample": 0.85,
+          "tree_method": null,
+          "validate_parameters": null,
+          "verbosity": null
+        },
+        "advertencias_fit": [],
+        "convergence_warning": false,
+        "test": {
+          "accuracy": 0.9993914142596321,
+          "precision": 0.8870967741935484,
+          "recall": 0.7432432432432432,
+          "f1_score": 0.8088235294117647,
+          "roc_auc": 0.9636867100640314,
+          "pr_auc": 0.7982898362489581
+        },
+        "validacion": {
+          "accuracy": 0.9992509538634395,
+          "precision": 0.8088235294117647,
+          "recall": 0.7432432432432432,
+          "f1_score": 0.7746478873239436,
+          "roc_auc": 0.9850241359139992,
+          "pr_auc": 0.7793596356189328
+        }
+      }
+    }
+  }
+}

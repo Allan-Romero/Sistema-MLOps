@@ -1,0 +1,15 @@
+flowchart LR
+  mv[model_versions\nCaso, versión, algoritmo, F1, estado]
+  mm[model_metrics\nMétricas por caso, versión y algoritmo]
+  pr[predictions\nEntrada JSON, predicción, probabilidad, versión\nEtiqueta posterior opcional]
+  ex[experiments\nVersiones A/B, porcentaje, estado, ganadora]
+  pd[promotion_decisions\nCandidata, anterior, mejora, umbral, motivo]
+  de[deployments\nOrigen, destino, promoción/rollback, motivo]
+  al[alerts\nCaso, variable, nivel, descripción]
+  mv -.->|caso_uso + model_version / version| mm
+  mv -.->|caso_uso + model_version / version| pr
+  mv -.->|caso_uso + version_a / version_b| ex
+  mv -.->|caso_uso + version_candidata / anterior| pd
+  mv -.->|caso_uso + version_origen / destino| de
+  pr -.->|caso_uso y distribución de input_data| al
+  nota[Relaciones lógicas: NO hay foreign keys declaradas\nÍndices únicos parciales: una activa y un experimento activo por caso]

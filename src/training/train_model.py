@@ -36,14 +36,16 @@ def cargar_datos_entrenamiento():
     return X_train, y_train
 
 
-def entrenar_modelo(X_train, y_train):
-    """Entrena el modelo base de Regresión Logística."""
-
-    modelo = LogisticRegression(
+def construir_modelo():
+    """Configuración única, compartida por pipeline y comparación reproducible."""
+    return LogisticRegression(
         max_iter=1000,
         random_state=42
     )
 
+def entrenar_modelo(X_train, y_train):
+    """Entrena el modelo base de Regresión Logística."""
+    modelo = construir_modelo()
     modelo.fit(X_train, y_train)
 
     print("\nModelo Logistic Regression entrenado correctamente.")

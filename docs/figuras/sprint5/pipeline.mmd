@@ -1,0 +1,22 @@
+flowchart TB
+  c[Churn: CSV Telco]
+  c1[Limpiar TotalCharges y quitar customerID]
+  c2[Split estratificado 80/20 seed42\nOne-hot con columnas de train]
+  c3[Entrenar Logistic Regression y XGBoost]
+  c4[Comparar sobre test y elegir mayor F1\nLimitación: test también selecciona]
+  c5[MLflow: parámetros, métricas, artefactos y candidate]
+  f[Fraude: CSV Credit Card]
+  f1[Validar esquema de 30 variables y Class]
+  f2[Split estratificado 70/15/15 seed42]
+  f3[LR escalada y ponderada / XGBoost ponderado]
+  f4[Umbral y algoritmo por F1 de validación\nDesempate por average precision]
+  f5[Evaluar test; guardar ThresholdClassifier y JSON]
+  reg[Registro transaccional en PostgreSQL\nLa política usa F1 del reporte de test]
+  policy{Sin activa o mejora F1 >= 0.01?}
+  activa[Nueva activa; anterior histórica\nVersiones, métricas, auditoría y deployment]
+  desc[Descartada; se conserva la activa\nVersiones, métricas y auditoría]
+  c --> c1 --> c2 --> c3 --> c4 --> c5 --> reg
+  f --> f1 --> f2 --> f3 --> f4 --> f5 -->|--registrar explícito| reg
+  reg --> policy
+  policy -->|Sí| activa
+  policy -->|No| desc

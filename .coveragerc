@@ -1,0 +1,20 @@
+[run]
+branch = True
+source = src
+relative_files = True
+data_file = reports/sprint5/.coverage
+
+[report]
+include_namespace_packages = True
+show_missing = True
+skip_covered = False
+precision = 2
+
+[html]
+directory = reports/sprint5/htmlcov
+
+[xml]
+output = reports/sprint5/coverage.xml
+
+[json]
+output = reports/sprint5/coverage.json
