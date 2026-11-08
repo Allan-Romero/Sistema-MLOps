@@ -8,8 +8,13 @@ nunca estimados.
 El escenario manual no se mide aquí, porque consiste en tiempo humano
 —escribir consultas, copiar archivos, revisar resultados— y debe
 cronometrarse ejecutando efectivamente los pasos a mano. El procedimiento
-está descrito en docs/sprint4_a7_tiempos.md y sus tiempos se agregan al
+está descrito en docs/sprint5_a2_tiempos.md y sus tiempos se agregan al
 mismo archivo de resultados, en la columna manual_s.
+
+Desde el Sprint 4 la promoción dejó de ser una acción aparte: el pipeline
+decide y escribe el cambio de versión dentro del registro, y la API sirve la
+versión nueva en la siguiente petición, sin reinicio. Por eso esa actividad
+se mide como el tiempo que tarda la API en atender con la versión activa.
 
 Uso:
     python -m src.benchmark.medir_tiempos [repeticiones]
@@ -17,8 +22,6 @@ Uso:
 
 import csv
 import io
-import shutil
-import subprocess
 import sys
 import time
 from contextlib import redirect_stdout
@@ -26,7 +29,7 @@ from pathlib import Path
 
 import requests
 
-from src.database.crud import obtener_historial_despliegues
+from src.database.crud import obtener_historial_despliegues, obtener_version_activa
 from src.monitoring.detect_drift import detectar_drift, registrar_alertas
 from src.training.compare_models import main as comparar_modelos
 from src.training.evaluate_model import main as evaluar_modelo
@@ -43,32 +46,43 @@ MODELS_DIR = PROJECT_ROOT / "models"
 RESULTADOS = PROJECT_ROOT / "reports" / "tiempos_ciclo.csv"
 
 API_HEALTH = "http://localhost:8000/health"
-ESPERA_MAXIMA_API = 120
+API_PREDICT = "http://localhost:8000/predict"
+
+# Cliente de referencia para comprobar qué versión atiende la petición
+CLIENTE_DE_PRUEBA = {
+    "gender": "Female", "SeniorCitizen": 0, "Partner": "Yes",
+    "Dependents": "No", "tenure": 12, "PhoneService": "Yes",
+    "MultipleLines": "No", "InternetService": "Fiber optic",
+    "OnlineSecurity": "No", "OnlineBackup": "Yes",
+    "DeviceProtection": "No", "TechSupport": "No", "StreamingTV": "Yes",
+    "StreamingMovies": "No", "Contract": "Month-to-month",
+    "PaperlessBilling": "Yes", "PaymentMethod": "Electronic check",
+    "MonthlyCharges": 85.5, "TotalCharges": 1026.0,
+}
 
 
 def promover_modelo():
-    """Copia el candidato a modelo activo y espera a que la API lo sirva."""
-    shutil.copy(
-        MODELS_DIR / "churn_model_candidate.joblib",
-        MODELS_DIR / "churn_model_v1.joblib",
-    )
+    """Comprueba que la API atienda con la versión activa del registro.
 
-    subprocess.run(
-        ["docker", "compose", "restart", "api"],
-        cwd=PROJECT_ROOT,
-        check=True,
-        capture_output=True,
-    )
+    La decisión de promoción ocurre dentro del registro de la versión, en una
+    sola transacción, y el cargador de la API consulta `model_versions` en
+    cada petición. Promover no exige copiar archivos ni reiniciar el
+    servicio: lo que cuesta es la primera petición atendida con la versión
+    nueva, que es lo que se mide aquí.
+    """
+    version_activa = obtener_version_activa("churn")
+    if not version_activa:
+        raise RuntimeError("No hay una versión activa registrada para churn.")
 
-    limite = time.perf_counter() + ESPERA_MAXIMA_API
-    while time.perf_counter() < limite:
-        try:
-            if requests.get(API_HEALTH, timeout=5).status_code == 200:
-                return
-        except requests.RequestException:
-            pass
+    respuesta = requests.post(API_PREDICT, json=CLIENTE_DE_PRUEBA, timeout=60)
+    respuesta.raise_for_status()
 
-    raise TimeoutError("La API no volvió a responder tras la promoción.")
+    servida = respuesta.json()["model_version"]
+    if servida != version_activa[0][2]:
+        raise RuntimeError(
+            f"La API sirvió {servida} y el registro marca "
+            f"{version_activa[0][2]} como activa."
+        )
 
 
 def analizar_drift():

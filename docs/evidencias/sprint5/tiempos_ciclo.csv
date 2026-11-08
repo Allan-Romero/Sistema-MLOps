@@ -1,0 +1,7 @@
+actividad,repeticiones,automatizado_promedio_s,automatizado_min_s,automatizado_max_s,manual_s
+Preprocesamiento,3,0.31,0.22,0.47,407.63
+Entrenamiento,3,2.22,1.87,2.92,303.23
+Evaluación comparativa,3,0.2,0.17,0.24,253.9
+Registro de la versión,3,47.36,35.35,67.47,165.8
+Promoción a producción,3,1.97,0.09,5.7,223.19
+Detección de drift,3,1.59,0.77,2.76,362.67

@@ -101,6 +101,10 @@ def graficar(filas, salida=SALIDA):
 
     ejes.set_yticks(posiciones, actividades, fontsize=10, color=TINTA)
     ejes.invert_yaxis()
+    # Margen a la derecha para que quepa la etiqueta de la barra más larga
+    mayor = max([v for v in automatizado + manual if v] or [1])
+    ejes.set_xlim(0, mayor * 1.12)
+
     ejes.set_xlabel("Duración (segundos)", fontsize=10, color=TINTA_SUAVE)
     ejes.tick_params(axis="x", colors=TINTA_SUAVE, labelsize=9)
 
@@ -108,7 +112,11 @@ def graficar(filas, salida=SALIDA):
     ejes.set_title(titulo, fontsize=13, color=TINTA, pad=30, loc="left")
 
     if hay_manual:
-        ejes.legend(frameon=False, fontsize=10, loc="lower right")
+        # Fuera del área de trazado: con barras largas no queda hueco dentro
+        ejes.legend(
+            frameon=False, fontsize=10, ncol=2,
+            loc="upper center", bbox_to_anchor=(0.5, -0.12),
+        )
     else:
         # Aclaración bajo el título: el gráfico aún no es la comparación
         ejes.text(
