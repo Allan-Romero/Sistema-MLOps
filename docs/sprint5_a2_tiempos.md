@@ -131,6 +131,13 @@ La suma de ambas, 710,86 s, sí corresponde al trabajo de preprocesar y
 entrenar; el reparto entre las dos es aproximado. Las actividades 3 a 6 se
 midieron una por una, sin solapamiento.
 
+Se intentó volver a medir esas dos actividades para quitar la salvedad. Los
+tiempos de ese segundo intento (271,46 s y 267,41 s) **se descartaron**
+porque no dejaron rastro verificable: ni los artefactos en disco ni
+actividad en la consola de trabajo permitían confirmar que la ejecución se
+hubiera hecho de nuevo. Se prefirió conservar la medición original con su
+salvedad declarada antes que usar cifras que no se pueden sustentar.
+
 **Un hallazgo del escenario manual que vale la pena reportar.** Al ejecutar
 la promoción a mano, el paso que degrada la versión activa se ejecutó antes
 que el que activa la nueva, y como el registro de la versión había fallado,
