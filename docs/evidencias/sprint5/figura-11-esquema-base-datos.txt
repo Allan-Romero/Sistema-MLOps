@@ -1,0 +1,69 @@
+        tabla        | n  |        columna         |            tipo             | no nulo 
+---------------------+----+------------------------+-----------------------------+---------
+ alerts              |  1 | id                     | integer                     | NO
+ alerts              |  2 | caso_uso               | character varying(20)       | NO
+ alerts              |  3 | variable_afectada      | character varying(50)       | NO
+ alerts              |  4 | nivel_drift            | character varying(20)       | 
+ alerts              |  5 | descripcion            | text                        | 
+ alerts              |  6 | revisada               | boolean                     | 
+ alerts              |  7 | created_at             | timestamp without time zone | 
+ deployments         |  1 | id                     | integer                     | NO
+ deployments         |  2 | caso_uso               | character varying(20)       | NO
+ deployments         |  3 | version_origen         | character varying(20)       | 
+ deployments         |  4 | version_destino        | character varying(20)       | NO
+ deployments         |  5 | tipo_operacion         | character varying(20)       | NO
+ deployments         |  6 | motivo                 | text                        | 
+ deployments         |  7 | metrica_principal      | character varying(20)       | 
+ deployments         |  8 | valor_metrica_origen   | double precision            | 
+ deployments         |  9 | valor_metrica_destino  | double precision            | 
+ deployments         | 10 | created_at             | timestamp without time zone | 
+ experiments         |  1 | id                     | integer                     | NO
+ experiments         |  2 | caso_uso               | character varying(20)       | NO
+ experiments         |  3 | version_a              | character varying(20)       | NO
+ experiments         |  4 | version_b              | character varying(20)       | NO
+ experiments         |  5 | porcentaje_trafico_b   | integer                     | NO
+ experiments         |  6 | estado                 | character varying(20)       | NO
+ experiments         |  7 | version_ganadora       | character varying(20)       | 
+ experiments         |  8 | started_at             | timestamp without time zone | 
+ experiments         |  9 | ended_at               | timestamp without time zone | 
+ model_metrics       |  1 | id                     | integer                     | NO
+ model_metrics       |  2 | caso_uso               | character varying(20)       | NO
+ model_metrics       |  3 | model_version          | character varying(20)       | NO
+ model_metrics       |  4 | algoritmo              | character varying(50)       | 
+ model_metrics       |  5 | accuracy               | double precision            | 
+ model_metrics       |  6 | precision              | double precision            | 
+ model_metrics       |  7 | recall                 | double precision            | 
+ model_metrics       |  8 | f1_score               | double precision            | 
+ model_metrics       |  9 | roc_auc                | double precision            | 
+ model_metrics       | 10 | created_at             | timestamp without time zone | 
+ model_versions      |  1 | id                     | integer                     | NO
+ model_versions      |  2 | caso_uso               | character varying(20)       | NO
+ model_versions      |  3 | version                | character varying(20)       | NO
+ model_versions      |  4 | algoritmo              | character varying(50)       | 
+ model_versions      |  5 | metrica_principal      | character varying(20)       | 
+ model_versions      |  6 | valor_metrica          | double precision            | 
+ model_versions      |  7 | estado                 | character varying(20)       | 
+ model_versions      |  8 | created_at             | timestamp without time zone | 
+ predictions         |  1 | id                     | integer                     | NO
+ predictions         |  2 | caso_uso               | character varying(20)       | NO
+ predictions         |  3 | input_data             | jsonb                       | NO
+ predictions         |  4 | prediction             | integer                     | NO
+ predictions         |  5 | probability            | double precision            | 
+ predictions         |  6 | model_version          | character varying(20)       | 
+ predictions         |  7 | created_at             | timestamp without time zone | 
+ predictions         |  8 | etiqueta_real          | integer                     | 
+ predictions         |  9 | etiqueta_registrada_at | timestamp without time zone | 
+ promotion_decisions |  1 | id                     | bigint                      | NO
+ promotion_decisions |  2 | caso_uso               | character varying(20)       | NO
+ promotion_decisions |  3 | version_candidata      | character varying(20)       | NO
+ promotion_decisions |  4 | version_anterior       | character varying(20)       | 
+ promotion_decisions |  5 | algoritmo              | character varying(50)       | NO
+ promotion_decisions |  6 | f1_candidato           | double precision            | NO
+ promotion_decisions |  7 | f1_activo              | double precision            | 
+ promotion_decisions |  8 | mejora                 | double precision            | 
+ promotion_decisions |  9 | umbral                 | double precision            | NO
+ promotion_decisions | 10 | resultado              | character varying(20)       | NO
+ promotion_decisions | 11 | motivo                 | text                        | NO
+ promotion_decisions | 12 | created_at             | timestamp without time zone | 
+(65 rows)
+

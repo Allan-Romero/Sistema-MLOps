@@ -1,0 +1,163 @@
+============================================================
+PIPELINE DE ENTRENAMIENTO - CHURN
+============================================================
+[1/8] PREPROCESAMIENTO
+------------------------------------------------------------
+========== PREPROCESAMIENTO CHURN ==========
+Dataset cargado correctamente.
+Dimensión original: (7043, 21)
+Limpieza completada.
+Dimensión después de limpieza: (7043, 20)
+Valores nulos: 0
+Codificación completada.
+Columnas no numéricas en train: 0
+Columnas no numéricas en test: 0
+Datos procesados guardados en:
+data\processed
+========== RESULTADO ==========
+X_train: (5634, 45)
+X_test:  (1409, 45)
+y_train: (5634,)
+y_test:  (1409,)
+Total registros: 7043
+Preprocesamiento completado correctamente.
+[2/8] ENTRENAMIENTO LOGISTIC REGRESSION
+------------------------------------------------------------
+========== ENTRENAMIENTO MODELO BASE ==========
+Datos de entrenamiento cargados correctamente.
+X_train: (5634, 45)
+y_train: (5634,)
+Modelo Logistic Regression entrenado correctamente.
+Modelo guardado correctamente en:
+models\logistic_regression_v1.joblib
+========== RESULTADO ==========
+Modelo: Logistic Regression
+Archivo: logistic_regression_v1.joblib
+Entrenamiento completado correctamente.
+[3/8] EVALUACIÓN LOGISTIC REGRESSION
+------------------------------------------------------------
+========== EVALUACIÓN MODELO BASE ==========
+Datos de prueba cargados correctamente.
+X_test: (1409, 45)
+y_test: (1409,)
+Modelo cargado correctamente:
+logistic_regression_v1.joblib
+========== MÉTRICAS ==========
+Accuracy:  0.8055
+Precision: 0.6562
+Recall:    0.5615
+F1-score:  0.6052
+ROC-AUC:   0.8428
+Métricas guardadas en:
+models\logistic_regression_v1_metrics.json
+Evaluación completada correctamente.
+[4/8] ENTRENAMIENTO XGBOOST
+------------------------------------------------------------
+========== ENTRENAMIENTO XGBOOST ==========
+Datos de entrenamiento cargados correctamente.
+X_train: (5634, 45)
+y_train: (5634,)
+Modelo XGBoost entrenado correctamente.
+Modelo XGBoost guardado correctamente en:
+models\xgboost_v1.joblib
+========== RESULTADO ==========
+Modelo: XGBoost
+Archivo: xgboost_v1.joblib
+Entrenamiento completado correctamente.
+[5/8] COMPARACIÓN DE MODELOS
+------------------------------------------------------------
+========== COMPARACIÓN DE MODELOS ==========
+Datos de prueba cargados correctamente.
+X_test: (1409, 45)
+y_test: (1409,)
+========== MÉTRICAS COMPARATIVAS ==========
+                     accuracy  precision    recall  f1_score   roc_auc
+Logistic Regression  0.805536   0.656250  0.561497  0.605187  0.842765
+XGBoost              0.801987   0.655738  0.534759  0.589102  0.844891
+Comparación guardada en:
+models\model_comparison.json
+Comparación completada correctamente.
+[6/8] SELECCIÓN DEL MEJOR MODELO
+------------------------------------------------------------
+========== SELECCIÓN DE MEJOR MODELO ==========
+Métrica de decisión: f1_score
+Logistic Regression: f1_score = 0.605187
+XGBoost: f1_score = 0.589102
+========== MODELO SELECCIONADO ==========
+Modelo: Logistic Regression
+Métrica: f1_score
+Valor: 0.605187
+Estado: candidate
+Modelo candidato guardado en:
+models\churn_model_candidate.joblib
+Información de selección guardada en:
+models\model_selection.json
+Selección completada correctamente.
+[7/8] REGISTRO DE EXPERIMENTOS EN MLFLOW
+------------------------------------------------------------
+========== REGISTRO MLFLOW ==========
+Tracking URI: http://127.0.0.1:5000
+Experimento: churn-model-training
+Logistic Regression registrado correctamente.
+Run ID: ad92a168662d429f992650ac4c2b1673
+Estado: candidate
+========== VERSIÓN REGISTRADA ==========
+Modelo registrado: churn-model
+Versión MLflow: 10
+Versión proyecto: v1.9
+Algoritmo: Logistic Regression
+Métrica: f1_score
+Valor: 0.605187
+Estado: candidate
+Fecha: 2026-11-05T23:00:19-05:00
+🏃 View run logistic-regression at: http://127.0.0.1:5000/#/experiments/1/runs/ad92a168662d429f992650ac4c2b1673
+🧪 View experiment at: http://127.0.0.1:5000/#/experiments/1
+XGBoost registrado correctamente.
+Run ID: c58ff87d21744b52af26115c57f01f95
+Estado: evaluated
+🏃 View run xgboost at: http://127.0.0.1:5000/#/experiments/1/runs/c58ff87d21744b52af26115c57f01f95
+🧪 View experiment at: http://127.0.0.1:5000/#/experiments/1
+========== HISTORIAL DE VERSIONES ==========
+MLflow    Versión     Algoritmo                Métrica        Valor          Estado
+-----------------------------------------------------------------------------------------------
+1         v1.0        Logistic Regression      f1_score       0.605187       historical
+2         v1.1        Logistic Regression      f1_score       0.605187       historical
+3         v1.2        Logistic Regression      f1_score       0.605187       historical
+4         v1.3        Logistic Regression      f1_score       0.605187       historical
+5         v1.4        Logistic Regression      f1_score       0.605187       historical
+6         v1.5        Logistic Regression      f1_score       0.605187       historical
+7         v1.6        Logistic Regression      f1_score       0.605187       historical
+8         v1.7        Logistic Regression      f1_score       0.605187       historical
+9         v1.8        Logistic Regression      f1_score       0.605187       historical
+10        v1.9        Logistic Regression      f1_score       0.605187       candidate
+========== RESULTADO ==========
+Modelos registrados en MLflow correctamente.
+Experimento: churn-model-training
+Model Registry: churn-model
+Registro MLflow completado.
+[8/8] PERSISTENCIA EN POSTGRESQL
+------------------------------------------------------------
+========== PERSISTENCIA MLOPS ==========
+========== DECISION DE PROMOCION ==========
+Versión candidata: v1.3
+Versión anterior: v1.0
+F1 candidato: 0.605187
+F1 activo: 0.605187
+Mejora: 0.000000
+Umbral mínimo: 0.0100
+Estado: descartada
+Motivo: El candidato no alcanza la mejora mínima.
+========== RESULTADO FINAL ==========
+Versión: v1.3
+Estado: descartada
+Modelo descartado. Producción sin cambios.
+Artefactos generados correctamente:
+- models\logistic_regression_v1.joblib
+- models\xgboost_v1.joblib
+- models\logistic_regression_v1_metrics.json
+- models\model_comparison.json
+- models\churn_model_candidate.joblib
+- models\model_selection.json
+============================================================
+PIPELINE COMPLETADO CORRECTAMENTE
+============================================================
