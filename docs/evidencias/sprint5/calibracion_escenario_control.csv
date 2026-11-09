@@ -1,0 +1,7 @@
+escenario,variable,psi,nivel
+control con valores uniformes,tenure,0.3389,alto
+control con valores uniformes,MonthlyCharges,1.2488,alto
+control con valores uniformes,TotalCharges,0.3697,alto
+control muestreado del baseline,tenure,0.0034,bajo
+control muestreado del baseline,MonthlyCharges,0.0048,bajo
+control muestreado del baseline,TotalCharges,0.0048,bajo

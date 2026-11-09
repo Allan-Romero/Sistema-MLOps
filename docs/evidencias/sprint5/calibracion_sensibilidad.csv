@@ -1,0 +1,9 @@
+factor,psi,nivel,genera_alerta
+1.0,0.0092,bajo,False
+1.1,0.0235,bajo,False
+1.2,0.0538,bajo,False
+1.3,0.1092,medio,True
+1.5,0.1932,medio,True
+1.8,0.3397,alto,True
+2.0,0.4237,alto,True
+2.5,0.6081,alto,True
