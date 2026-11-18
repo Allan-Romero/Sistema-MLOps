@@ -12,9 +12,10 @@ COPY requirements/ ./requirements/
 COPY docker/requirements-dashboard.txt ./docker/requirements-dashboard.txt
 RUN pip install --no-cache-dir --retries 10 --timeout 120 -r docker/requirements-dashboard.txt
 
-# Código de la aplicación
+# Código de la aplicación y tema del tablero
 COPY src/ ./src/
 COPY dashboard/ ./dashboard/
+COPY .streamlit/ ./.streamlit/
 
 # Usuario sin privilegios para ejecutar el servicio
 RUN useradd --create-home --uid 1000 appuser \

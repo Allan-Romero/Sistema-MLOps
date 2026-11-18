@@ -1,0 +1,19 @@
+# Tema del tablero de monitoreo.
+#
+# Define la paleta base; el resto de la presentación (tarjetas, animaciones,
+# tipografía) la aporta dashboard/estilos.py. Se mantienen aquí solo las
+# claves estables de Streamlit para que el arranque no dependa de la versión.
+
+[theme]
+base = "dark"
+primaryColor = "#4C8DFF"
+backgroundColor = "#0A0F1C"
+secondaryBackgroundColor = "#111A2E"
+textColor = "#E8EEF9"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
