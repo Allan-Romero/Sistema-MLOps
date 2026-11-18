@@ -10,7 +10,9 @@ def main():
     for caso in ("churn", "fraude"):
         ruta_app = Path(__file__).resolve().parents[1] / "dashboard" / "app.py"
         app = AppTest.from_file(str(ruta_app), default_timeout=120).run()
-        app.selectbox[0].set_value(caso).run()
+        # Por clave y no por posición: el selector vive en la barra lateral
+        # y su orden dentro del árbol de elementos no es estable.
+        app.selectbox(key="caso_uso").set_value(caso).run()
         assert not app.exception, [str(e) for e in app.exception]
         activa = obtener_version_activa(caso)[0][2]
         indicadores = {m.label: m.value for m in app.metric}

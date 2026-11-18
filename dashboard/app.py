@@ -56,8 +56,7 @@ estilos.inyectar_estilos()
 
 def mostrar(figura, alto=None):
     """Dibuja una figura de Plotly con el tema propio del tablero."""
-    st.plotly_chart(figura, use_container_width=True, theme=None,
-                    config=GRAFICO)
+    st.plotly_chart(figura, width="stretch", theme=None, config=GRAFICO)
 
 
 def sin_datos(mensaje):
@@ -74,6 +73,7 @@ with st.sidebar:
     CASO_USO = st.selectbox(
         "Caso de uso",
         listar_casos(),
+        key="caso_uso",
         format_func=etiqueta,
         help="Las métricas, predicciones, alertas y experimentos "
              "corresponden al caso seleccionado",
@@ -520,7 +520,7 @@ with pestana_monitoreo:
 
     if opciones:
         variable = st.selectbox(
-            "Variable a analizar", opciones,
+            "Variable a analizar", opciones, key="variable_drift",
             help="Se listan primero las variables que generaron alertas")
 
         try:
